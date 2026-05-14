@@ -119,7 +119,7 @@ const Dashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [inf, bio, mental, trend, acts, status, alr] = await Promise.all([
+      const results = await Promise.allSettled([
         axios.get(`${API_BASE_URL}/inference/latest`),
         axios.get(`${API_BASE_URL}/metrics/biometric/trend`),
         axios.get(`${API_BASE_URL}/metrics/mental/trend`),
@@ -128,16 +128,20 @@ const Dashboard = () => {
         axios.get(`${API_BASE_URL}/status`),
         axios.get(`${API_BASE_URL}/alerts`)
       ])
-      setLatestInference(inf.data)
-      setBiometricTrend(bio.data)
-      setMentalTrend(mental.data)
-      setInferenceTrend(trend.data)
-      setActivities(acts.data)
-      setSystemStatus(status.data.value)
-      setIsAnalyzing(status.data.value === 'analyzing')
-      setAlerts(alr.data)
+
+      if (results[0].status === 'fulfilled') setLatestInference(results[0].value.data)
+      if (results[1].status === 'fulfilled') setBiometricTrend(results[1].value.data)
+      if (results[2].status === 'fulfilled') setMentalTrend(results[2].value.data)
+      if (results[3].status === 'fulfilled') setInferenceTrend(results[3].value.data)
+      if (results[4].status === 'fulfilled') setActivities(results[4].value.data)
+      if (results[5].status === 'fulfilled') {
+        setSystemStatus(results[5].value.data.value)
+        setIsAnalyzing(results[5].value.data.value === 'analyzing')
+      }
+      if (results[6].status === 'fulfilled') setAlerts(results[6].value.data)
+      
     } catch (err) {
-      console.error("Error fetching data:", err)
+      console.error("Error fetching dashboard data:", err)
     }
   }
 

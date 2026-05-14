@@ -56,18 +56,20 @@ const Coach = () => {
 
   const fetchDataSecundario = async () => {
     try {
-      const [recRes, techRes, feedRes] = await Promise.all([
+      const results = await Promise.allSettled([
         axios.get(`${API_BASE_URL}/coach/recommendation`),
         axios.get(`${API_BASE_URL}/coach/techniques`),
         axios.get(`${API_BASE_URL}/coach/feedback/today`)
       ])
-      setRecommendation(recRes.data)
-      setTechniques(techRes.data)
-      if (feedRes.data) {
-        setFeedback(feedRes.data)
-        setTachiSuccess(feedRes.data.tachi_waza_success)
-        setNeSuccess(feedRes.data.ne_waza_success)
-        setFeedbackNotes(feedRes.data.notes || '')
+      
+      if (results[0].status === 'fulfilled') setRecommendation(results[0].value.data)
+      if (results[1].status === 'fulfilled') setTechniques(results[1].value.data)
+      if (results[2].status === 'fulfilled' && results[2].value.data) {
+        const feed = results[2].value.data
+        setFeedback(feed)
+        setTachiSuccess(feed.tachi_waza_success)
+        setNeSuccess(feed.ne_waza_success)
+        setFeedbackNotes(feed.notes || '')
       }
     } catch (err) {
       console.error("Error fetching technical data:", err)
@@ -76,7 +78,11 @@ const Coach = () => {
 
   useEffect(() => {
     fetchProfile()
-  }, [])
+    const interval = setInterval(() => {
+      if (profile) fetchDataSecundario()
+    }, 10000) // Poll cada 10s si ya hay perfil
+    return () => clearInterval(interval)
+  }, [profile?.id])
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()

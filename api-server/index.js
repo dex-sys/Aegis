@@ -488,24 +488,36 @@ app.get('/api/coach/recommendation', async (req, res) => {
       return res.status(400).json({ error: 'Debes completar tu perfil de Judoka primero.' });
     }
 
-    // Ejecutar el motor de IA del Coach
-    // Nota: En producción esto podría estar cacheado por día
-    const output = execSync('docker exec aegis-inference node /app/get_coach_advice.js').toString();
-    const jsonMatch = output.match(/\{[\s\S]*\}/);
-    
-    if (jsonMatch) {
-      res.json(JSON.parse(jsonMatch[0]));
-    } else {
-      throw new Error('AI Coach Engine failed to return valid JSON');
-    }
-  } catch (err) {
-    console.error('Coach recommendation error:', err.message);
-    // Fallback por si falla el contenedor de inferencia
-    res.json({
-      tachi_waza_focus: "Uchi-komi técnico",
-      ne_waza_focus: "Movilidad y control",
-      rationale: "El motor de IA está offline. Usando protocolo de contingencia."
+    // Ejecutar el motor de IA del Coach de forma ASÍNCRONA para no bloquear el event loop
+    console.log('Running AI Coach Engine (async)...');
+    exec('docker exec aegis-inference node /app/get_coach_advice.js', (error, stdout, stderr) => {
+      if (error) {
+        console.error('Coach recommendation error:', error.message);
+        return res.json({
+          tachi_waza_focus: "Uchi-komi técnico",
+          ne_waza_focus: "Movilidad y control",
+          rationale: "El motor de IA ha fallado o está ocupado. Usando protocolo de contingencia."
+        });
+      }
+
+      const jsonMatch = stdout.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          res.json(JSON.parse(jsonMatch[0]));
+        } catch (parseErr) {
+          res.status(500).json({ error: 'Failed to parse AI response' });
+        }
+      } else {
+        res.json({
+          tachi_waza_focus: "Refuerzo de fundamentos",
+          ne_waza_focus: "Transiciones básicas",
+          rationale: "La IA no devolvió un formato válido. Revisa los logs del motor de inferencia."
+        });
+      }
     });
+  } catch (err) {
+    console.error('Coach recommendation internal error:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
