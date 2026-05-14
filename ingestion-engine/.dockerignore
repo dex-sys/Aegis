@@ -1,0 +1,6 @@
+node_modules
+npm-debug.log
+data/dropzone/*
+!data/dropzone/.gitkeep
+.env
+.git

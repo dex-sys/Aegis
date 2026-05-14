@@ -1,0 +1,85 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: aegis-db
+    restart: always
+    environment:
+      POSTGRES_USER: aegis_admin
+      POSTGRES_PASSWORD: aegis_vault_password
+      POSTGRES_DB: aegis_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+
+  ingestion-engine:
+    build:
+      context: ./ingestion-engine
+      dockerfile: Dockerfile
+    container_name: aegis-ingestion
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://aegis_admin:aegis_vault_password@db:5432/aegis_db
+      DROPZONE_PATH: /app/dropzone
+    volumes:
+      - ./data/dropzone:/app/dropzone
+      - ./ingestion-engine:/app
+      - /app/node_modules
+      - gemini_state:/root/.gemini # Carpeta persistente para la sesión
+    depends_on:
+      - db
+
+  # Ahora es un servicio persistente, no un job
+  inference-engine:
+    build:
+      context: ./ingestion-engine
+      dockerfile: Dockerfile
+    container_name: aegis-inference
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://aegis_admin:aegis_vault_password@db:5432/aegis_db
+    volumes:
+      - ./ingestion-engine:/app
+      - /app/node_modules
+      - gemini_state:/root/.gemini # Comparten la misma sesión de login
+    depends_on:
+      - db
+    command: tail -f /dev/null # Se queda encendido esperando órdenes
+
+  api-server:
+    build:
+      context: ./api-server
+      dockerfile: Dockerfile
+    container_name: aegis-api
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://aegis_admin:aegis_vault_password@db:5432/aegis_db
+      DROPZONE_PATH: /app/dropzone
+    volumes:
+      - ./data/dropzone:/app/dropzone
+      - ./api-server:/app
+      - /app/node_modules
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - db
+
+  web-ui:
+    build:
+      context: ./web-ui
+      dockerfile: Dockerfile
+    container_name: aegis-web
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./web-ui:/app
+      - /app/node_modules
+    depends_on:
+      - api-server
+
+volumes:
+  postgres_data:
+  gemini_state: # Este volumen guardará tu login para siempre

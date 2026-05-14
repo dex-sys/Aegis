@@ -1,0 +1,220 @@
+const express = require('express');
+const { Pool } = require('pg');
+const cors = require('cors');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const { exec } = require('child_process');
+require('dotenv').config();
+
+const app = express();
+const port = process.env.PORT || 3001;
+
+// Configuración de multer para subida de archivos
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dropzone = process.env.DROPZONE_PATH || '/app/dropzone';
+    // Asegurarse de que el directorio existe
+    if (!fs.existsSync(dropzone)) {
+      fs.mkdirSync(dropzone, { recursive: true });
+    }
+    cb(null, dropzone);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  limits: { fileSize: 200 * 1024 * 1024 }, // Límite de 200MB para XMLs grandes
+  fileFilter: (req, file, cb) => {
+    if (path.extname(file.originalname).toLowerCase() === '.xml' || path.extname(file.originalname).toLowerCase() === '.json' || path.extname(file.originalname).toLowerCase() === '.csv') {
+      cb(null, true);
+    } else {
+      cb(new Error('Formato de archivo no soportado. Use XML, JSON o CSV.'));
+    }
+  },
+  storage: storage 
+});
+
+app.use(cors());
+app.use(express.json());
+
+// Helper para disparar inferencia
+const triggerInference = () => {
+  console.log('Triggering AI Inference via Docker...');
+  // Dado que el api-server no tiene el script de inferencia, le pedimos al contenedor de inferencia que lo ejecute
+  exec('docker exec aegis-inference node /app/inference.js', (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Inference Trigger Error: ${error}`);
+      return;
+    }
+    console.log('Inference Triggered Successfully on aegis-inference container');
+  });
+};
+
+// Endpoint: Upload Health Data
+app.post('/api/upload', upload.single('healthData'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No se ha subido ningún archivo.' });
+  }
+  res.json({ 
+    message: 'Archivo recibido y en cola para procesamiento.',
+    filename: req.file.filename 
+  });
+});
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+app.use(cors());
+app.use(express.json());
+
+// Endpoint: Latest Inference
+app.get('/api/inference/latest', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM inference_results ORDER BY target_date DESC LIMIT 1');
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint: System Status
+app.get('/api/status', async (req, res) => {
+  try {
+    const result = await pool.query("SELECT value FROM system_status WHERE key = 'ingestion_state'");
+    res.json(result.rows[0] || { value: 'unknown' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint: Inference Trend
+app.get('/api/inference/trend', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT target_date, readiness_score FROM inference_results ORDER BY target_date ASC LIMIT 30');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint: Biometric Trends
+app.get('/api/metrics/biometric/trend', async (req, res) => {
+  try {
+    // Agregamos pasos por día para el gráfico
+    const result = await pool.query(`
+      SELECT 
+        DATE(timestamp) as date,
+        AVG(rhr_bpm) as rhr,
+        AVG(hrv_ms) as hrv,
+        SUM(step_count) as steps,
+        SUM(sleep_duration_seconds) / 3600.0 as sleep_hours
+      FROM metrics_biometric 
+      GROUP BY DATE(timestamp)
+      ORDER BY DATE(timestamp) DESC 
+      LIMIT 30
+    `);
+    res.json(result.rows.reverse());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint: Mental Health Trends
+app.get('/api/metrics/mental/trend', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM metrics_mental_health ORDER BY timestamp ASC LIMIT 30');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint: Nutrition Logs
+app.get('/api/nutrition', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM nutrition_logs ORDER BY timestamp DESC LIMIT 20');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint: Create Nutrition Log
+app.post('/api/nutrition', async (req, res) => {
+  const { raw_text } = req.body;
+  try {
+    const query = "INSERT INTO nutrition_logs (raw_text) VALUES ($1) RETURNING *";
+    const result = await pool.query(query, [raw_text]);
+    const newLog = result.rows[0];
+    res.status(201).json(newLog);
+
+    // Disparar Parser de Nutrición
+    console.log(`Triggering Nutrition Parser for ID: ${newLog.id}`);
+    exec(`docker exec aegis-inference node /app/parse_nutrition.js ${newLog.id}`, (error) => {
+      if (error) console.error('Nutrition Parser Trigger Error:', error);
+      else console.log('Nutrition Parser Triggered Successfully');
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint: Create Mental Health Record
+app.post('/api/metrics/mental', async (req, res) => {
+  const { mood_score, stress_level, anxiety_level, motivation_score, subjective_notes } = req.body;
+  try {
+    const query = `
+      INSERT INTO metrics_mental_health (timestamp, mood_score, stress_level, anxiety_level, motivation_score, subjective_notes)
+      VALUES (NOW(), $1, $2, $3, $4, $5)
+      RETURNING *
+    `;
+    const values = [mood_score, stress_level, anxiety_level, motivation_score, subjective_notes];
+    const result = await pool.query(query, values);
+    res.status(201).json(result.rows[0]);
+    triggerInference();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint: Activity Logs
+app.get('/api/activities', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM activity_logs ORDER BY start_time DESC LIMIT 10');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint: Create Activity Log (Manual)
+app.post('/api/activities', async (req, res) => {
+  const { start_time, activity_type, cognitive_load_rpe, context_metadata } = req.body;
+  try {
+    const query = `
+      INSERT INTO activity_logs (start_time, activity_type, cognitive_load_rpe, context_metadata)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `;
+    const values = [
+      start_time || new Date(),
+      activity_type || 'judo',
+      cognitive_load_rpe,
+      JSON.stringify(context_metadata || {})
+    ];
+    const result = await pool.query(query, values);
+    res.status(201).json(result.rows[0]);
+    triggerInference();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Aegis API Server running on port ${port}`);
+});
