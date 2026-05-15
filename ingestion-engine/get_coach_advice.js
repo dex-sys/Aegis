@@ -35,38 +35,37 @@ async function getCoachAdvice() {
 
     // 2. Preparar el Prompt para Gemini
     const prompt = `
-Actúa como un Entrenador Olímpico de Judo y experto en Preparación Física.
-Tu misión es dar el FOCO TÉCNICO para la sesión de hoy basándote en el perfil del judoka, su estado fisiológico y su rendimiento reciente.
+Actúa como un Entrenador Olímpico de Judo y Analista Táctico de Datos.
+Tu misión es diseñar el foco técnico (micro-misión) para la sesión de Randori de hoy, optimizando la progresión hacia el próximo Dan y minimizando el riesgo de lesión.
 
 PERFIL DEL JUDOKA:
 - Grado: ${profile.belt_rank}
 - Categoría: ${profile.weight_category}
 - Estilo/Tokui-Waza: ${profile.preferred_style}
-- Lesiones: ${profile.injury_history}
+- Lesiones Históricas: ${profile.injury_history}
 - Objetivos: ${profile.goals}
 
-CONTEXTO FISIOLÓGICO:
-- Readiness Score: ${systemContext.readiness_score} (0-1)
+ESTADO DE SISTEMA:
+- Readiness (0-1): ${systemContext.readiness_score}
+- ACWR (Fatiga): ${systemContext.inference_metadata?.fatigue_engine?.acwr_ratio || 'N/A'}
 - Estado: ${systemContext.recommendation_summary}
-- Fatiga ACWR: ${systemContext.inference_metadata?.fatigue_engine?.acwr_ratio || 'N/A'}
 
-RENDIMIENTO RECIENTE (Feedback de Randori):
-${recentFeedback.map(f => `- Fecha: ${f.target_date.toISOString().split('T')[0]}, Pie: ${f.tachi_waza_success ? 'LOGRADO' : 'FALLIDO'}, Suelo: ${f.ne_waza_success ? 'LOGRADO' : 'FALLIDO'}, Notas: ${f.notes}`).join('\n') || 'Sin registros recientes.'}
+HISTORIAL DE RENDIMIENTO (Últimos Randoris):
+${recentFeedback.map(f => `- Fecha: ${f.target_date.toISOString().split('T')[0]}, Tachi-waza: ${f.tachi_waza_success ? 'ÉXITO' : 'FALLO'}, Ne-waza: ${f.ne_waza_success ? 'ÉXITO' : 'FALLO'}, Notas: ${f.notes}`).join('\n') || 'Sin registros recientes.'}
 
-TÉCNICAS CONOCIDAS:
-${techniques.map(t => `- ${t.name} (${t.category}, Nivel ${t.mastery_level}/5${t.is_tokui_waza ? ', Tokui-Waza' : ''})`).join('\n')}
+ARSENAL TÉCNICO DISPONIBLE:
+${techniques.map(t => `- ${t.name} (Nivel ${t.mastery_level}/5${t.is_tokui_waza ? ', Tokui-Waza' : ''})`).join('\n')}
 
-INSTRUCCIONES:
-1. Analiza el Readiness. 
-2. Considera las lesiones.
-3. AJUSTA SEGÚN FEEDBACK: Si falló en los últimos focos, sugiere algo más sencillo o un enfoque correctivo. Si tuvo éxito, aumenta la complejidad.
-4. Genera un razonamiento breve que conecte los datos con la decisión.
+DIRECTRICES TÁCTICAS:
+1. Modulación por Fatiga: Si el ACWR es >1.3 o el Readiness es bajo (<0.5), el foco debe ser conservador, defensivo (ej. Kumikata, desplazamientos, control) o de bajo impacto articular, respetando el historial de lesiones.
+2. Bucle de Feedback: Si falló en Tachi-waza recientemente, asigna una técnica correctiva o una variante preparatoria de su Tokui-Waza. Si tuvo éxito, aumenta la complejidad de los encadenamientos (Renraku-waza).
+3. Especificidad: Las recomendaciones deben ser técnicas de Judo precisas y medibles en un Randori, no conceptos abstractos.
 
-IMPORTANTE: Responde ÚNICAMENTE en formato JSON válido:
+CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Markdown (\`\`\`json).
 {
-  "tachi_waza_focus": "string (máx 10 palabras)",
-  "ne_waza_focus": "string (máx 10 palabras)",
-  "rationale": "explicación técnica vinculada a biometría y feedback reciente"
+  "tachi_waza_focus": "string (máx 10 palabras, específico y accionable)",
+  "ne_waza_focus": "string (máx 10 palabras, específico y accionable)",
+  "rationale": "Explicación táctica justificando el foco según la biometría actual y el feedback anterior"
 }
 `;
 

@@ -50,43 +50,36 @@ async function generatePlan() {
     // 4. Preparar el Prompt para Gemini
     const currentTime = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     const prompt = `
-Actúa como un Lead Operations Strategist y experto en Optimización Humana.
-Tu misión es organizar el día del usuario ("Misión del Día") basándote en su briefing, su estado fisiológico actual y tareas pendientes.
+Actúa como un AI Chief of Staff y Experto en Optimización Neuro-Fisiológica.
+Tu objetivo es orquestar la "Misión del Día" del usuario (cronograma de tareas), alineando sus obligaciones con su capacidad fisiológica y cognitiva actual.
 
-CONTEXTO TEMPORAL:
+ESTADO DEL SISTEMA:
 - Fecha: ${targetDate}
-- Hora Actual: ${currentTime} (Organiza el día EMPEZANDO desde esta hora, no planifiques tareas en el pasado).
+- Hora de Planificación: ${currentTime} (NO programes tareas antes de esta hora).
+- Nivel de Energía (Readiness): ${systemContext.readiness_score} (0-1)
+- Estrés Fisiológico (ACWR): ${systemContext.inference_metadata?.fatigue_engine?.acwr_ratio || 'N/A'}
+- Deuda de Sueño: ${sleep.sleep_duration_seconds ? (sleep.sleep_duration_seconds / 3600).toFixed(1) : 'N/A'}h (Calidad: ${sleep.sleep_score || 'N/A'}/100)
+- Estado Mental: Estrés ${mental.stress_level || 'N/A'}/10, Ánimo ${mental.mood_score || 'N/A'}/10
+- Restricciones Nutricionales: ${nutrition.kcal || 0} kcal, ${nutrition.protein || 0}g proteína ingresadas en 24h.
 
-CONTEXTO FISIOLÓGICO DETALLADO:
-- Readiness Score: ${systemContext.readiness_score} (0-1)
-- Fatiga (ACWR): ${systemContext.inference_metadata?.fatigue_engine?.acwr_ratio || 'N/A'}
-- Último Sueño: ${sleep.sleep_duration_seconds ? (sleep.sleep_duration_seconds / 3600).toFixed(1) : 'N/A'}h (Calidad: ${sleep.sleep_score || 'N/A'}/100)
-- Nutrición (24h): ${nutrition.kcal || 0} kcal, ${nutrition.protein || 0}g proteína
-- Estado Mental: Mood ${mental.mood_score || 'N/A'}/10, Estrés ${mental.stress_level || 'N/A'}/10
-- Recomendación General: ${systemContext.recommendation_summary}
+INPUTS DE PLANIFICACIÓN:
+- Briefing Crudo: "${raw_briefing}"
+- Tareas Pendientes (Backlog): ${pendingTasks.length > 0 ? pendingTasks.map(t => `- [${t.type}] ${t.title}`).join('\n') : 'Ninguna'}
 
-BRIEFING DEL USUARIO:
-"${raw_briefing}"
+REGLAS DE ORQUESTACIÓN:
+1. Pacing Basado en Datos: Si el estrés mental es >7 o el sueño fue pobre (<6h), fragmenta las tareas cognitivas (Deep Work) e introduce bloques de recuperación activa (leisure/admin).
+2. Triage: Filtra y prioriza. No todas las tareas pendientes deben hacerse hoy si el Readiness es bajo (<0.5).
+3. Cronobiología: Asigna el trabajo más duro ("eat the frog") a las ventanas donde se espera el pico de energía (Peak Window), y tareas mecánicas ('admin') a las ventanas de bajón.
+4. Sentido Común: Si son las 22:00, el plan debe enfocarse en "Wind down" o preparativos para mañana, no en iniciar trabajo profundo.
 
-TAREAS PENDIENTES DE DÍAS ANTERIORES:
-${pendingTasks.length > 0 ? pendingTasks.map(t => `- [${t.type}] ${t.title} (de fecha: ${t.target_date.toISOString().split('T')[0]})`).join('\n') : 'Ninguna'}
-
-TAREAS:
-1. Analiza el briefing y extrae las tareas previstas.
-2. Analiza las tareas pendientes y decide cuáles son críticas para recuperar hoy (basándote en el Readiness).
-3. Organiza las tareas en un timeline lógico. 
-   - Usa la Peak Window si el Readiness es alto para tareas cognitivas.
-   - Si el ACWR es >1.5, sugiere reducir la intensidad de tareas físicas.
-4. Para cada tarea, proporciona un "ai_rationale" (razonamiento táctico) breve que explique por qué se coloca ahí según su fisiología.
-
-IMPORTANTE: Responde ÚNICAMENTE en formato JSON válido con la siguiente estructura:
+CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Markdown (\`\`\`json).
 {
   "tasks": [
     {
-      "title": "string",
+      "title": "string (Acción específica)",
       "scheduled_time": "HH:MM",
       "type": "cognitive | physical | leisure | admin",
-      "ai_rationale": "explicación de 1 frase vinculada a sus datos"
+      "ai_rationale": "Justificación fisiológica/táctica (1 frase) de por qué se programa a esta hora"
     }
   ]
 }

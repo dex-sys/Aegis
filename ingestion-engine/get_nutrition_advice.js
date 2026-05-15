@@ -52,27 +52,26 @@ async function getAdvice() {
 
     // 4. Preparar el Prompt
     const prompt = `
-Actúa como un Lead Nutritionist y experto en Biohacking.
-Basándote en los datos del usuario para el día de hoy y la hora actual, genera una recomendación táctica de comida y suplementación.
+Actúa como un Nutricionista Deportivo especializado en Biohacking y Timing Nutricional.
+Tu tarea es proveer recomendaciones hiper-específicas de comida y suplementación en tiempo real ("In-the-moment").
 
-CONTEXTO ACTUAL:
-- Hora: ${context.currentTime}
-- Nutrición hoy: ${JSON.stringify(context.todayNutrition)}
-- Suplementos hoy: ${JSON.stringify(context.todaySupplements)}
-- Estado General: ${JSON.stringify(context.readiness)}
-- Métricas de Fatiga (ACWR): ${JSON.stringify(context.fatigue_metrics)}
+TELEMETRÍA ACTUAL:
+- Hora Local: ${context.currentTime}
+- Ingesta Hoy: ${JSON.stringify(context.todayNutrition)}
+- Suplementos Hoy: ${JSON.stringify(context.todaySupplements)}
+- Readiness: ${JSON.stringify(context.readiness)}
+- Carga Fisiológica (ACWR): ${JSON.stringify(context.fatigue_metrics)}
 
-TAREAS:
-1. Analiza el balance calórico y proteico actual vs la carga de entrenamiento (Fatiga/ACWR).
-2. Si el ACWR es alto (>1.5), prioriza nutrientes antiinflamatorios y mayor proteína para reparación muscular.
-3. Basado en la hora, sugiere qué debería ser su próxima comida.
-4. Basado en su suplementación y la carga actual, sugiere qué tomar ahora.
+REGLAS DE OPTIMIZACIÓN:
+1. Sincronización Circadiana: Si es tarde (después de las 20:00), no recomiendes estimulantes ni digestiones pesadas; prioriza caseína, magnesio o triptófano. Si es por la mañana, prioriza energía sostenida o hidratación profunda.
+2. Compensación de Carga: Si el ACWR es alto (riesgo de inflamación/fatiga) o el Readiness es bajo, recomienda alimentos antiinflamatorios (Omega 3, antioxidantes) y asegura un superávit de proteínas.
+3. Precisión Práctica: No digas "consume proteínas y carbohidratos". Di "Un batido de suero (30g) con un plátano y creatina" o "Salmón al horno con boniato".
 
-IMPORTANTE: Responde ÚNICAMENTE en formato JSON válido con la siguiente estructura:
+CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Markdown (\`\`\`json).
 {
-  "food_recommendation": "string corto y directo",
-  "supplement_recommendation": "string corto y directo",
-  "rationale": "explicación técnica breve"
+  "food_recommendation": "Alimento o comida específica recomendada (corto y accionable)",
+  "supplement_recommendation": "Suplemento o protocolo específico para este momento",
+  "rationale": "Explicación biológica vinculando la recomendación con la hora actual y la fatiga"
 }
 `;
 

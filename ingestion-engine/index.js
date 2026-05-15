@@ -28,8 +28,12 @@ async function initDB() {
 
 // Watcher para nuevos archivos
 const watcher = chokidar.watch(DROPZONE_PATH, {
-  ignored: /(^|[\/\\])\../,
-  persistent: true
+  ignored: (path) => path.includes('node_modules') || path.includes('.git'),
+  persistent: true,
+  awaitWriteFinish: {
+    stabilityThreshold: 1000,
+    pollInterval: 100
+  }
 });
 
 watcher.on('add', async (filePath) => {

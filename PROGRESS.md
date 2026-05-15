@@ -39,7 +39,7 @@ Motor de Inferencia para la Optimización del Rendimiento (Quantified Self AI). 
 - [x] Daily "Estado de Combate" Report Generation (Implemented & Verified)
 - [x] UI Acceptance Testing Suite (Vitest + JSDOM)
 
-### Phase 4: Advanced Tactical Coaching & Bio-Hacking (Backlog)
+### Phase 4: Advanced Tactical Coaching & Bio-Hacking (Active)
 - [x] **Visualización Predictiva**: Gráfica de tendencia ACWR con "Zonas de Seguridad" y "Zonas de Riesgo".
 - [ ] **Indicador de Disponibilidad**: Widget de "Batería Biométrica" (HRV + Sueño + Carga).
 - [ ] **Estrategia Situacional**: Simulador de Oponentes (Gemini genera planes contra perfiles específicos).
@@ -48,6 +48,24 @@ Motor de Inferencia para la Optimización del Rendimiento (Quantified Self AI). 
 - [ ] **Pre-Hab Adaptativo**: Rutinas de movilidad generadas por IA según el nivel de fatiga y ACWR.
 - [ ] **Sincronización Nutricional**: Ajuste automático de macros/hidratación según la intensidad del Randori.
 - [ ] **Reporte "Estado de Combate" Pro**: Exportación de informes técnicos en PDF/Markdown para seguimiento externo.
+
+### Phase 5: Deep Analytics & Ecosystem Expansion (Backlog)
+- [ ] **Módulo "Laboratorio" (Recovery & Biometrics)**:
+    - [ ] Visualización de arquitectura de sueño (REM, Profundo, Ligero).
+    - [ ] Dashboard de tendencias a largo plazo de HRV y RHR.
+    - [ ] Análisis de dispersión: Correlación entre calidad de sueño y ACWR.
+- [ ] **Módulo "El Dojo" (Arsenal & Mastery)**:
+    - [ ] Visualización de Árbol de Habilidades (Skill Tree) interactivo.
+    - [ ] Historial técnico de Randori para identificar "leaks" en el juego.
+    - [ ] Progresión de maestría visual hacia el próximo Dan.
+- [ ] **Módulo "Zen" (Mind & Focus)**:
+    - [ ] Correlación IA entre carga cognitiva/académica y rendimiento físico.
+    - [ ] Tracking automatizado de "Deep Work" vs. Carga de Estrés percibida.
+    - [ ] Recomendaciones de gestión de estrés basadas en el ciclo circadiano.
+- [ ] **Módulo "Bitácora" (System Log & Control)**:
+    - [ ] Centro de control de datos brutos (Edición/Borrado de logs de comida, sueño, etc.).
+    - [ ] Auditoría de sincronización de fuentes (Apple, Huawei, Manual).
+    - [ ] Configuración avanzada del Perfil Biométrico y objetivos dinámicos.
 
 ## 4. Completed Tasks
 ...

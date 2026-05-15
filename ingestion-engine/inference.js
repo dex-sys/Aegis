@@ -155,30 +155,25 @@ async function runInference() {
 
     // 2. Preparar el Prompt
     const prompt = `
-Actúa como un Lead Systems Architect y experto en Fisiología del Rendimiento Humano. 
-Tu objetivo es generar un reporte de "Estado de Combate" basado en datos biométricos, de actividad, SALUD MENTAL y NUTRICIÓN.
+Actúa como un Científico de Datos de Alto Rendimiento Deportivo (Sports Scientist) y experto en Quantitative Self.
+Tu objetivo es analizar telemetría multimodal para generar el reporte "Estado de Combate", evaluando la homeostasis sistémica del usuario.
 
 DATOS DE CONTEXTO (Fatigue Engine + Raw Data):
 ${JSON.stringify(context, null, 2)}
 
-CONFIGURACIÓN DE SEGURIDAD:
-- Si "is_cold_start" es true (pocos días de datos), el ACWR de 4.0 es un artefacto matemático. NO des alertas de lesión crítica basándote solo en esto. Sé cauteloso pero prioriza la acumulación de datos.
-- Considera que el usuario está empezando a trackear ahora.
+REGLAS DE INFERENCIA Y SEGURIDAD:
+- "is_cold_start" = true significa que el ACWR puede mostrar picos matemáticos irreales (ej. >3.0) por falta de histórico. En este caso, prioriza la tendencia de HRV y Sueño sobre el ACWR bruto.
+- Correlaciona métricas: Si la carga (ACWR) es alta, verifica si el déficit calórico o la calidad de sueño están agravando la fatiga.
+- Si el nivel de estrés mental es alto (>7), asume un coste alostático mayor en el SNC (Sistema Nervioso Central) y penaliza el Readiness Score.
 
 TAREAS:
-1. Analiza el ACWR Holístico (Acute:Chronic Workload Ratio ponderado por recuperación). 
-   - Si ACWR > 1.5: Riesgo alto de lesión/burnout.
-   - Si ACWR < 0.8: Desentrenamiento.
-   - NOTA: Este ratio ya incluye penalizaciones por falta de sueño y estrés mental. Si ves un ACWR alto, investiga si es por exceso de ejercicio o por pobre recuperación.
-2. Evalúa la recuperación biométrica (HRV, Sueño) en relación con la carga (Acute Workload).
-3. Analiza la Nutrición: ¿Es suficiente la energía (kcal) y proteína para la carga de Judo detectada?
-4. Analiza la Salud Mental Percibida (Mood, Stress, Anxiety, Motivation).
-5. Genera un Readiness Score de 0.0 a 1.0.
-6. Define el Nivel de Fatiga (Low, Moderate, High, Critical).
-7. Sugiere una Ventana de Máximo Rendimiento (Peak Window) para hoy.
-8. Proporciona un resumen ejecutivo de recomendaciones claras.
+1. Evalúa el Readiness Score (0.00 a 1.00) integrando recuperación física (HRV/Sueño), nutrición (déficit/surplus) y carga mental.
+2. Determina el Nivel de Fatiga estandarizado: "Low", "Moderate", "High", o "Critical".
+3. Identifica una ventana temporal ("Peak Window") para el trabajo de mayor demanda cognitiva o física hoy, basada en sus ritmos circadianos (asumiendo cronotipo matutino/intermedio por defecto si no hay datos).
+4. Redacta un resumen ejecutivo de recomendaciones (máximo 3 frases) directo y accionable.
+5. Define el "Protocolo Aplicado" (ej. "Protocolo de Descanso Activo", "Protocolo de Sobrecarga", "Protocolo de Recuperación del SNC").
 
-IMPORTANTE: Responde ÚNICAMENTE en formato JSON válido con la siguiente estructura:
+CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Markdown (\`\`\`json).
 {
   "readiness_score": float,
   "fatigue_level": "string",
@@ -186,7 +181,7 @@ IMPORTANTE: Responde ÚNICAMENTE en formato JSON válido con la siguiente estruc
   "peak_window_end": "HH:MM",
   "recommendation_summary": "string",
   "protocol_applied": "string",
-  "rationale": "Breve explicación técnica"
+  "rationale": "Justificación fisiológica de 1 frase"
 }
 `;
 

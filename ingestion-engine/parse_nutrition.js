@@ -31,24 +31,25 @@ async function parseNutrition(logId) {
 
     // 2. Preparar el Prompt
     const prompt = `
-Actúa como un experto en Nutrición y Ciencia de los Alimentos.
-Tu tarea es analizar la siguiente descripción de una comida y extraer los macronutrientes aproximados.
+Actúa como un Motor de Ingesta de Datos Nutricionales (NLP a Datos Estructurados).
+Tu única función es extraer macronutrientes estimados a partir del lenguaje natural introducido por el usuario.
 
-TEXTO DE LA COMIDA:
+INPUT DE TEXTO:
 "${rawText}"
 
-TAREAS:
-1. Identifica los ingredientes y sus cantidades.
-2. Calcula el total aproximado de: Calorías (kcal), Proteínas (g), Carbohidratos (g) y Grasas (g).
-3. Devuelve una lista de los alimentos detectados.
+REGLAS DE EXTRACCIÓN:
+1. Identifica todos los alimentos y estima sus porciones estándar si no se especifican explícitamente (ej. "un plato de pasta" = 200g aprox).
+2. Calcula los valores totales de Energía (kcal), Proteína (g), Carbohidratos (g) y Grasas (g) basándote en bases de datos nutricionales estándar (USDA).
+3. Sé conservador pero realista. Si el texto es ambiguo ("comí mucho sushi"), estima una comida copiosa (ej. 1000+ kcal).
+4. Normaliza los nombres de los elementos extraídos en una lista limpia.
 
-IMPORTANTE: Responde ÚNICAMENTE en formato JSON válido con la siguiente estructura:
+CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin texto adicional ni bloques de código Markdown (\`\`\`json).
 {
   "kcal": integer,
   "protein_g": integer,
   "carbs_g": integer,
   "fats_g": integer,
-  "items": ["item1", "item2", ...]
+  "items": ["lista", "de", "alimentos", "normalizados"]
 }
 `;
 

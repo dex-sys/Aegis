@@ -282,31 +282,50 @@ const Nutrition = () => {
               </h3>
               <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
                 {Array.isArray(nutritionLogs) && nutritionLogs.map(log => (
-                  <div key={log.id} className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl group relative transition-all hover:border-slate-700">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2 text-primary">
-                        <Clock className="w-3 h-3" />
-                        <span className="text-[10px] font-black uppercase tracking-tighter">
-                          {formatDate(log.timestamp)}
-                        </span>
+                  <div key={log.id} className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl group transition-all hover:border-slate-700">
+                    {/* Header: Status and Actions */}
+                    <div className="flex justify-between items-center mb-4 gap-4">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 text-primary">
+                          <Clock className="w-3 h-3" />
+                          <span className="text-[10px] font-black uppercase tracking-tighter">
+                            {formatDate(log.timestamp)}
+                          </span>
+                        </div>
+                        {/* Status Indicator */}
+                        <div>
+                          {log.status === 'processed' ? (
+                            <div className="flex items-center gap-1 text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border border-green-500/20">
+                              <Zap className="w-2 h-2 fill-green-500" /> Listo
+                            </div>
+                          ) : log.status === 'error' ? (
+                            <div className="flex items-center gap-1 text-red-500 bg-red-500/10 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border border-red-500/20">
+                              <Zap className="w-2 h-2 fill-red-500" /> Error
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full text-[8px] font-black uppercase animate-pulse border border-amber-500/20">
+                              <Zap className="w-2 h-2 fill-amber-500" /> Procesando
+                            </div>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Botón de Borrado */}
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          deleteMeal(log.id);
+                        }}
+                        className="p-2 bg-red-900/20 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all cursor-pointer border border-red-500/10 shrink-0"
+                        title="Eliminar registro"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
 
-                    <p className="text-xs text-slate-400 mb-4 italic pr-8">"{log.raw_text}"</p>
-
-                    {/* Botón de Borrado con debug directo */}
-                    <button 
-                      type="button"
-                      onClick={(e) => {
-                        console.error("BUTTON CLICKED FOR:", log.id);
-                        e.stopPropagation();
-                        e.preventDefault();
-                        deleteMeal(log.id);
-                      }}
-                      className="absolute top-4 right-4 p-2 bg-red-900/20 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all z-[999] cursor-pointer shadow-sm border border-red-500/20"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <p className="text-xs text-slate-400 mb-6 italic leading-relaxed line-clamp-2">"{log.raw_text}"</p>
 
                     <div className="flex justify-between items-end mr-2">
                       <span className="text-2xl font-black text-white">{log.kcal} <span className="text-[10px] text-slate-600">KCAL</span></span>
