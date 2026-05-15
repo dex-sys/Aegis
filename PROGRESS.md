@@ -67,6 +67,14 @@ Motor de Inferencia para la Optimización del Rendimiento (Quantified Self AI). 
     - [ ] Auditoría de sincronización de fuentes (Apple, Huawei, Manual).
     - [ ] Configuración avanzada del Perfil Biométrico y objetivos dinámicos.
 
+### Phase 6: RAG & Semantic Memory (Active in RAG_implementation branch)
+- [x] **Infrastructure**: Enabled `pgvector` in Docker & Schema.
+- [x] **Architecture**: Documented `AI_RAG_ARCHITECTURE.md`.
+- [x] **Narrative Synthesis**: Implemented logic to convert JSON logs to natural language.
+- [ ] **Embedding Worker**: Implementing background sync for semantic memory.
+- [ ] **Knowledge Ingestion**: Populating vector store with expert Judo/Nutrition content.
+- [ ] **Semantic Retrieval**: Integrating vector search into the inference engine prompts.
+
 ## 4. Completed Tasks
 - [x] Build and verify Docker environment.
 - [x] Process first Judo log via dropzone.

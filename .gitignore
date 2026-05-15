@@ -19,6 +19,7 @@ build/
 
 # User Private Data (CRITICAL)
 data/
+!data/knowledge/
 apple_health_export/
 web-ui/screenshot.png
 

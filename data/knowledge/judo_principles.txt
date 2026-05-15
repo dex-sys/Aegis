@@ -1,0 +1,13 @@
+# Principios de Judo para el Rendimiento Humano (Contexto Aegis)
+
+## 1. Seiryoku Zen'yo (Máximo Eficiencia, Mínimo Esfuerzo)
+Este principio no solo se aplica al tatami, sino a la gestión de la energía diaria. En Aegis, esto se traduce en alinear las tareas de alta demanda cognitiva con los picos de Readiness. Si el Readiness es bajo, la aplicación de Seiryoku Zen'yo dicta que el usuario debe enfocarse en la recuperación o en tareas administrativas de bajo coste energético.
+
+## 2. Jita Kyoei (Prosperidad y Beneficio Mutuo)
+Aunque Aegis es una herramienta individual, el progreso técnico depende del feedback constante. El registro de Randori es el "Uke" del sistema; sin datos honestos, el sistema no puede proyectar la progresión técnica adecuadamente.
+
+## 3. Manejo de la Fatiga y ACWR en Judo
+El Judo es un deporte de alta demanda anaeróbica y articular. Un ratio ACWR > 1.5 es un indicador crítico de riesgo de lesión en el hombro y rodilla. En estos estados, el foco debe rotar de "Uchikomi" de potencia a "Kumi-kata" táctico o visualización, reduciendo el impacto sin perder la progresión técnica.
+
+## 4. Nutrición para el Judoka Nocturno
+Para usuarios con picos de productividad nocturna, la ventana de recarga de glucógeno debe desplazarse. La ingesta de proteínas antes del sueño es crítica para reparar el micro-trauma muscular inducido por el Randori.
