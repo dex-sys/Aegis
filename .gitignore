@@ -1,1 +1,41 @@
+# Aegis - Git Ignore Configuration
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production / Build artifacts
+dist/
+build/
+*.current
+
+# Environment & Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# User Private Data (CRITICAL)
 data/
+apple_health_export/
+web-ui/screenshot.png
+
+# Generated AI Context (Contains personal biometrics and logs)
+ingestion-engine/*.txt
+
+# OS & IDE Files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Vite cache
+.vite/
