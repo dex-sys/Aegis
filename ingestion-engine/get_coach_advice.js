@@ -73,7 +73,7 @@ IMPORTANTE: Responde ÚNICAMENTE en JSON:
 
     // 4. Ejecutar Gemini
     const GEMINI_CMD = '/usr/local/bin/gemini';
-    let geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --prompt ""`).toString();
+    let geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --skip-trust --prompt ""`).toString();
 
     const jsonMatch = geminiOutput.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No valid JSON in AI output');

@@ -17,26 +17,26 @@ async function retrieveContext(query, limit = 3) {
   try {
     await dbClient.connect();
     
-    // Clean query for FTS (convert spaces to | for OR search or & for AND)
-    const formattedQuery = query.trim().split(/\s+/).join(' | ');
+    // websearch_to_tsquery is much more robust than manual join(' | ')
+    const searchFunction = 'websearch_to_tsquery';
 
     // 1. Search in Expert Knowledge
     const knowledgeRes = await dbClient.query(`
-      SELECT raw_text, content_source, ts_rank(search_vector, to_tsquery('spanish', $1)) as rank
+      SELECT raw_text, content_source, ts_rank(search_vector, ${searchFunction}('spanish', $1)) as rank
       FROM knowledge_base
-      WHERE search_vector @@ to_tsquery('spanish', $1)
+      WHERE search_vector @@ ${searchFunction}('spanish', $1)
       ORDER BY rank DESC
       LIMIT $2
-    `, [formattedQuery, limit]);
+    `, [query, limit]);
 
     // 2. Search in User Memory
     const memoryRes = await dbClient.query(`
-      SELECT narrative_summary, event_date, ts_rank(search_vector, to_tsquery('spanish', $1)) as rank
+      SELECT narrative_summary, event_date, ts_rank(search_vector, ${searchFunction}('spanish', $1)) as rank
       FROM user_memory
-      WHERE search_vector @@ to_tsquery('spanish', $1)
+      WHERE search_vector @@ ${searchFunction}('spanish', $1)
       ORDER BY rank DESC
       LIMIT $2
-    `, [formattedQuery, limit]);
+    `, [query, limit]);
 
     return {
       knowledge: knowledgeRes.rows,

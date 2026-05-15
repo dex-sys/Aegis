@@ -202,7 +202,7 @@ IMPORTANTE: Responde ÚNICAMENTE en JSON:
     const GEMINI_CMD = '/usr/local/bin/gemini';
     let geminiOutput;
     try {
-      geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --prompt ""`).toString();
+      geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --skip-trust --prompt ""`).toString();
     } catch (execErr) {
       console.error('Error executing Gemini CLI:', execErr.stderr?.toString() || execErr.message);
       throw execErr;
@@ -219,6 +219,9 @@ IMPORTANTE: Responde ÚNICAMENTE en JSON:
     const inference = JSON.parse(jsonMatch[0]);
     console.log('AI Inference Received:', inference.recommendation_summary);
 
+    // Truncate fatigue_level to 20 chars for DB safety
+    const fatigueLevel = (inference.fatigue_level || 'Moderate').substring(0, 20);
+
     // 4. Guardar resultados en la DB
     const insertQuery = `
       INSERT INTO inference_results 
@@ -234,7 +237,7 @@ IMPORTANTE: Responde ÚNICAMENTE en JSON:
     await dbClient.query(insertQuery, [
       context.target_date,
       inference.readiness_score,
-      inference.fatigue_level,
+      fatigueLevel,
       inference.peak_window_start,
       inference.peak_window_end,
       inference.recommendation_summary,

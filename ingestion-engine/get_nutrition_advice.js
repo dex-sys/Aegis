@@ -88,7 +88,7 @@ CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Ma
 
     // 5. Ejecutar Gemini
     const GEMINI_CMD = '/usr/local/bin/gemini';
-    const geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --prompt ""`).toString();
+    const geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --skip-trust --prompt ""`).toString();
     
     const jsonMatch = geminiOutput.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No valid JSON found in AI output');

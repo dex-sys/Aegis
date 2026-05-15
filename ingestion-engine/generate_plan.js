@@ -101,7 +101,7 @@ CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Ma
     const GEMINI_CMD = '/usr/local/bin/gemini';
     let geminiOutput;
     try {
-      geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --prompt ""`).toString();
+      geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --skip-trust --prompt ""`).toString();
     } catch (execErr) {
       console.error('Error executing Gemini CLI:', execErr.stderr?.toString() || execErr.message);
       throw execErr;

@@ -73,7 +73,7 @@ IMPORTANTE: Responde ÚNICAMENTE en JSON:
 
     // 4. Ejecutar Gemini CLI
     const GEMINI_CMD = '/usr/local/bin/gemini';
-    const geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --prompt ""`).toString();
+    const geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --skip-trust --prompt ""`).toString();
     
     console.log('--- AI Response with RAG ---');
     console.log(geminiOutput);
