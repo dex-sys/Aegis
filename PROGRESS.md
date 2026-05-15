@@ -4,7 +4,7 @@
 Motor de Inferencia para la Optimización del Rendimiento (Quantified Self AI). Un Sistema de Soporte a la Decisión (DSS) que centraliza datos biológicos, ambientales y de actividad.
 
 ## 2. Current Phase
-- **Phase 1: Research & Data Modeling** (Active)
+- **Phase 4: Advanced Tactical Coaching & Bio-Hacking** (Active)
 
 ## 3. Roadmap & Progress
 
@@ -22,7 +22,7 @@ Motor de Inferencia para la Optimización del Rendimiento (Quantified Self AI). 
 - [x] Implement Dockerized Inference Job
 - [x] Prompt Engineering (Contextual Template for "Estado de Combate")
 - [x] AI Output Parser & Re-ingestion logic
-- [x] Fatigue Correlation Engine (Implemented with ACWR & Workload analysis)
+- [x] Fatigue Correlation Engine: **Holistic ACWR** (Implemented load weighting with Sleep & Mental Stress)
 
 ### Phase 3: Interface & Delivery (Active)
 - [x] Implement API Server (Node/Express)
@@ -41,18 +41,18 @@ Motor de Inferencia para la Optimización del Rendimiento (Quantified Self AI). 
 
 ### Phase 4: Advanced Tactical Coaching & Bio-Hacking (Active)
 - [x] **Visualización Predictiva**: Gráfica de tendencia ACWR con "Zonas de Seguridad" y "Zonas de Riesgo".
-- [ ] **Indicador de Disponibilidad**: Widget de "Batería Biométrica" (HRV + Sueño + Carga).
+- [x] **Sincronización Nutricional**: Extracción automática de macros (IA) y disparador táctico según carga.
+- [ ] **Indicador de Disponibilidad**: Widget de "Batería Biométrica" (HRV + Sueño + Carga). <-- **CURRENT FOCUS**
 - [ ] **Estrategia Situacional**: Simulador de Oponentes (Gemini genera planes contra perfiles específicos).
 - [ ] **Micro-Misiones**: Sistema de objetivos de Randori accionables con validación post-entreno.
 - [ ] **Gamificación Técnica**: Niveles de Maestría visuales (Bronce/Plata/Oro) basados en feedback real.
 - [ ] **Pre-Hab Adaptativo**: Rutinas de movilidad generadas por IA según el nivel de fatiga y ACWR.
-- [ ] **Sincronización Nutricional**: Ajuste automático de macros/hidratación según la intensidad del Randori.
 - [ ] **Reporte "Estado de Combate" Pro**: Exportación de informes técnicos en PDF/Markdown para seguimiento externo.
 
 ### Phase 5: Deep Analytics & Ecosystem Expansion (Backlog)
 - [ ] **Módulo "Laboratorio" (Recovery & Biometrics)**:
     - [ ] Visualización de arquitectura de sueño (REM, Profundo, Ligero).
-    - [ ] Dashboard de tendencias a largo plazo de HRV y RHR.
+    - [ ] Dashboard de tendencias a largo plazo de HRV and RHR.
     - [ ] Análisis de dispersión: Correlación entre calidad de sueño y ACWR.
 - [ ] **Módulo "El Dojo" (Arsenal & Mastery)**:
     - [ ] Visualización de Árbol de Habilidades (Skill Tree) interactivo.
@@ -68,7 +68,6 @@ Motor de Inferencia para la Optimización del Rendimiento (Quantified Self AI). 
     - [ ] Configuración avanzada del Perfil Biométrico y objetivos dinámicos.
 
 ## 4. Completed Tasks
-...
 - [x] Build and verify Docker environment.
 - [x] Process first Judo log via dropzone.
 - [x] Generate first AI-powered "Estado de Combate" report.
@@ -76,12 +75,16 @@ Motor de Inferencia para la Optimización del Rendimiento (Quantified Self AI). 
 - [x] Fix XML streaming pause/resume bug in Ingestion Engine.
 - [x] Add Readiness Trend endpoint and frontend visualization.
 - [x] Implement Fatigue Correlation logic (ACWR calculation).
+- [x] **Evolution to Holistic ACWR**: Weighted physical load with Sleep and Mental Stress modifiers.
+- [x] **Nutrition AI Integration**: Real-time natural text to macro extraction with ingestion trigger.
+- [x] **Ingestion Engine Refactor**: Fixed chokidar ignore patterns and added write stability for shared volumes.
 
 ## 5. Pending Immediate Tasks
-- [ ] Notification/Alert System (Pending)
+- [ ] **Biometric Battery Widget**: Implementation of the availability indicator on the Dashboard.
+- [ ] **Opponent Simulation**: Basic prompt structure for tactical planning against specific styles.
 
 ## 6. Known Issues / Roadblocks
-- None at this stage.
+- **Anime.js Dependency**: Removed due to Vite/ESM compatibility issues; focusing on CSS/Native animations if needed.
 
 ## 7. Future Considerations
 - Privacy-first local encryption.
