@@ -78,10 +78,6 @@ const Coach = () => {
 
   useEffect(() => {
     fetchProfile()
-    const interval = setInterval(() => {
-      if (profile) fetchDataSecundario()
-    }, 10000) // Poll cada 10s si ya hay perfil
-    return () => clearInterval(interval)
   }, [profile?.id])
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -134,13 +130,51 @@ const Coach = () => {
     }
   }
 
-  const handleDeleteTechnique = async (id: string) => {
-    if (!confirm("¿Seguro que quieres eliminar esta técnica de tu inventario?")) return
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [genStep, setGenStep] = useState(0)
+
+  const handleGenerateRecommendation = async () => {
+    setIsGenerating(true)
+    setGenStep(1)
+    
+    // Simular pasos para feedback visual (la IA tarda 20-40s)
+    const steps = [
+      "Analizando biometría y ACWR...",
+      "Recuperando historial de Randori...",
+      "Consultando motor de IA Gemini...",
+      "Sincronizando táctica diaria..."
+    ]
+    
+    let currentStep = 0
+    const interval = setInterval(() => {
+      if (currentStep < steps.length - 1) {
+        currentStep++
+        setGenStep(currentStep + 1)
+      }
+    }, 5000)
+
     try {
-      await axios.delete(`${API_BASE_URL}/coach/techniques/${id}`)
-      fetchDataSecundario()
+      const res = await axios.post(`${API_BASE_URL}/coach/recommendation/generate`)
+      setRecommendation(res.data)
+      setGenStep(0)
+    } catch (err: any) {
+      console.error("Error generating recommendation:", err)
+      alert("Error al generar: " + (err.response?.data?.error || err.message))
+    } finally {
+      clearInterval(interval)
+      setIsGenerating(false)
+    }
+  }
+
+  const handleDeleteTechnique = async (id: string) => {
+    console.log("DEBUG: Attempting to delete technique with ID:", id);
+    try {
+      const res = await axios.delete(`${API_BASE_URL}/coach/techniques/${id}`)
+      console.log("DEBUG: Delete response:", res.data);
+      // Actualizar estado local inmediatamente para feedback visual instantáneo
+      setTechniques(prev => prev.filter(t => t.id !== id))
     } catch (err) {
-      console.error("Error deleting technique:", err)
+      console.error("DEBUG: Error deleting technique:", err)
     }
   }
 
@@ -271,44 +305,90 @@ const Coach = () => {
 
           {/* Recomendación Diaria */}
           {recommendation ? (
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-slate-900 border border-slate-800 p-10 rounded-[3rem] space-y-6 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-                  <Activity className="w-20 h-20 text-primary" />
-                </div>
-                <span className="bg-primary/10 text-primary text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-widest border border-primary/20">
-                  Foco Tachi-Waza (Pie)
-                </span>
-                <h3 className="text-3xl font-black text-white leading-tight uppercase tracking-tighter">
-                  {recommendation.tachi_waza_focus}
-                </h3>
+            <div className="space-y-6">
+              <div className="flex justify-between items-center px-4">
+                <h3 className="text-xs font-black uppercase text-slate-500 tracking-[0.3em]">Táctica Consolidada</h3>
+                <button 
+                  onClick={handleGenerateRecommendation}
+                  disabled={isGenerating}
+                  className="text-[9px] font-black uppercase tracking-widest bg-slate-800 hover:bg-primary hover:text-slate-950 px-4 py-2 rounded-xl transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isGenerating ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-slate-950 rounded-full animate-ping"></div>
+                      {genStep === 1 ? 'Analizando...' : genStep === 2 ? 'Historial...' : genStep === 3 ? 'Gemini...' : 'Sincronizando...'}
+                    </span>
+                  ) : <><Activity className="w-3 h-3" /> Regenerar Táctica</>}
+                </button>
               </div>
+              <section className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-700">
+                {/* ... (rest of recommendation section) ... */}
+                <div className="bg-slate-900 border border-slate-800 p-10 rounded-[3rem] space-y-6 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                    <Activity className="w-20 h-20 text-primary" />
+                  </div>
+                  <span className="bg-primary/10 text-primary text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-widest border border-primary/20">
+                    Foco Tachi-Waza (Pie)
+                  </span>
+                  <h3 className="text-3xl font-black text-white leading-tight uppercase tracking-tighter">
+                    {recommendation.tachi_waza_focus}
+                  </h3>
+                </div>
 
-              <div className="bg-slate-900 border border-slate-800 p-10 rounded-[3rem] space-y-6 relative overflow-hidden group">
-                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-                  <Star className="w-20 h-20 text-blue-400" />
+                <div className="bg-slate-900 border border-slate-800 p-10 rounded-[3rem] space-y-6 relative overflow-hidden group">
+                   <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                    <Star className="w-20 h-20 text-blue-400" />
+                  </div>
+                  <span className="bg-blue-400/10 text-blue-400 text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-widest border border-blue-400/20">
+                    Foco Ne-Waza (Suelo)
+                  </span>
+                  <h3 className="text-3xl font-black text-white leading-tight uppercase tracking-tighter">
+                    {recommendation.ne_waza_focus}
+                  </h3>
                 </div>
-                <span className="bg-blue-400/10 text-blue-400 text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-widest border border-blue-400/20">
-                  Foco Ne-Waza (Suelo)
-                </span>
-                <h3 className="text-3xl font-black text-white leading-tight uppercase tracking-tighter">
-                  {recommendation.ne_waza_focus}
-                </h3>
-              </div>
 
-              <div className="md:col-span-2 bg-slate-950/50 border border-slate-800 p-8 rounded-[2.5rem] flex items-start gap-6">
-                <div className="bg-primary/20 p-3 rounded-2xl">
-                  <AlertCircle className="text-primary w-6 h-6" />
+                <div className="md:col-span-2 bg-slate-950/50 border border-slate-800 p-8 rounded-[2.5rem] flex items-start gap-6">
+                  <div className="bg-primary/20 p-3 rounded-2xl">
+                    <AlertCircle className="text-primary w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-primary font-black uppercase text-[10px] tracking-widest block mb-1">Razonamiento Estratégico Aegis</span>
+                    <p className="text-slate-300 text-sm leading-relaxed italic">"{recommendation.rationale}"</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-primary font-black uppercase text-[10px] tracking-widest block mb-1">Razonamiento Estratégico Aegis</span>
-                  <p className="text-slate-300 text-sm leading-relaxed italic">"{recommendation.rationale}"</p>
-                </div>
-              </div>
-            </section>
+              </section>
+            </div>
           ) : (
-            <div className="bg-slate-900/50 border border-slate-800 p-10 rounded-[3rem] text-center animate-pulse">
-              <p className="text-slate-500 font-black uppercase text-xs tracking-[0.3em]">Generando táctica diaria...</p>
+            <div className="bg-slate-900/50 border border-slate-800 p-12 rounded-[3rem] text-center space-y-6">
+              <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/20">
+                <Activity className={`w-10 h-10 text-primary ${isGenerating ? 'animate-spin' : 'animate-pulse'}`} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-white uppercase tracking-tighter">
+                  {isGenerating ? 'Sincronizando con Gemini' : 'No hay táctica para hoy'}
+                </h3>
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-2">
+                  {isGenerating 
+                    ? (genStep === 1 ? 'Analizando biometría y ACWR...' : genStep === 2 ? 'Recuperando historial de Randori...' : genStep === 3 ? 'Consultando motor de IA Gemini...' : 'Sincronizando táctica diaria...')
+                    : 'Inicia el motor de IA para analizar tu estado biométrico y técnico'}
+                </p>
+              </div>
+              <button 
+                onClick={handleGenerateRecommendation}
+                disabled={isGenerating}
+                className={`bg-primary text-slate-950 font-black px-12 py-5 rounded-[2rem] uppercase tracking-widest hover:scale-[1.05] transition-all flex items-center gap-4 mx-auto ${isGenerating ? 'opacity-50' : ''}`}
+              >
+                {isGenerating ? (
+                  <>
+                    <div className="w-5 h-5 border-4 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
+                    ESTADO: {genStep * 25}%
+                  </>
+                ) : (
+                  <>
+                    <Dumbbell className="w-6 h-6" /> GENERAR TÁCTICA DIARIA
+                  </>
+                )}
+              </button>
             </div>
           )}
 
@@ -421,7 +501,8 @@ const Coach = () => {
                   <div className="flex items-center gap-4">
                     <button 
                       onClick={() => handleDeleteTechnique(tech.id)}
-                      className="p-2 text-slate-700 hover:text-danger hover:bg-danger/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                      className="p-2 text-slate-700 hover:text-danger hover:bg-danger/10 rounded-lg transition-all"
+                      title="Eliminar técnica"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -449,17 +530,58 @@ const Coach = () => {
             </div>
           </section>
 
-          {/* Próximas funcionalidades (Placeholders) */}
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-slate-900/20 border border-slate-800/50 p-6 rounded-[2rem] text-center opacity-40 grayscale group cursor-not-allowed">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Riesgo Lesión</p>
-              <div className="w-8 h-px bg-slate-800 mx-auto mb-2"></div>
-              <p className="text-[9px] text-slate-600 uppercase font-bold">Monitorización ACWR</p>
+          {/* Métricas de Riesgo y Progreso */}
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-slate-900 border border-slate-800 p-8 rounded-[3rem] relative overflow-hidden group">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Riesgo de Lesión (ACWR)</p>
+                  <h4 className="text-3xl font-black text-white">
+                    {recommendation?.acwr || '1.0'}
+                  </h4>
+                </div>
+                <div className={`px-4 py-2 rounded-full text-[10px] font-black uppercase ${
+                  (recommendation?.acwr || 1) > 1.5 ? 'bg-danger/20 text-danger border border-danger/30' :
+                  (recommendation?.acwr || 1) > 1.3 ? 'bg-warning/20 text-warning border border-warning/30' :
+                  'bg-success/20 text-success border border-success/30'
+                }`}>
+                  {(recommendation?.acwr || 1) > 1.5 ? 'Crítico' : (recommendation?.acwr || 1) > 1.3 ? 'Alto' : 'Óptimo'}
+                </div>
+              </div>
+              <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-1000 ${
+                    (recommendation?.acwr || 1) > 1.5 ? 'bg-danger' : (recommendation?.acwr || 1) > 1.3 ? 'bg-warning' : 'bg-success'
+                  }`}
+                  style={{ width: `${Math.min(100, (recommendation?.acwr || 1) * 50)}%` }}
+                ></div>
+              </div>
+              <p className="text-[10px] text-slate-500 mt-4 leading-tight italic">
+                {(recommendation?.acwr || 1) > 1.5 ? '¡PELIGRO! Carga aguda demasiado alta. Riesgo inminente de lesión.' : (recommendation?.acwr || 1) > 1.3 ? 'Atención: Estás en la zona de sobreesfuerzo.' : 'Carga de trabajo equilibrada. Sigue con el protocolo.'}
+              </p>
             </div>
-            <div className="bg-slate-900/20 border border-slate-800/50 p-6 rounded-[2rem] text-center opacity-40 grayscale group cursor-not-allowed">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Progreso Grados</p>
-              <div className="w-8 h-px bg-slate-800 mx-auto mb-2"></div>
-              <p className="text-[9px] text-slate-600 uppercase font-bold">Camino al Dan</p>
+
+            <div className="bg-slate-900 border border-slate-800 p-8 rounded-[3rem]">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Puntos de Maestría Acumulados</p>
+                  <h4 className="text-3xl font-black text-white">
+                    {techniques.reduce((acc, t) => acc + t.mastery_level, 0)} <span className="text-sm text-slate-600">pts</span>
+                  </h4>
+                </div>
+                <div className="bg-primary/10 text-primary border border-primary/20 px-4 py-2 rounded-full text-[10px] font-black uppercase">
+                  Camino al Dan
+                </div>
+              </div>
+              <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-1000"
+                  style={{ width: `${Math.min(100, (techniques.reduce((acc, t) => acc + t.mastery_level, 0) / 100) * 100)}%` }}
+                ></div>
+              </div>
+              <p className="text-[10px] text-slate-500 mt-4 leading-tight italic">
+                {techniques.length < 5 ? 'Añade más técnicas para completar tu repertorio base.' : 'Sigue perfeccionando tus técnicas para subir de grado.'}
+              </p>
             </div>
           </section>
         </div>

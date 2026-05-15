@@ -32,10 +32,22 @@ Motor de Inferencia para la Optimización del Rendimiento (Quantified Self AI). 
     - [x] Readiness Trend Visualization (New)
     - [x] Entrenador Personal (Judo Coach) - Onboarding & AI Tactics
     - [x] Bucle de Feedback de Randori (Technical Focus tracking)
+    - [x] Monitor de Riesgo de Lesión (ACWR visualization)
+    - [x] Sistema de Progreso de Maestría (Camino al Dan)
 - [x] Update AI Inference loop with Mental Health data
 - [x] Notification/Alert System (Implemented with System Alerts & Dashboard Banners)
 - [x] Daily "Estado de Combate" Report Generation (Implemented & Verified)
 - [x] UI Acceptance Testing Suite (Vitest + JSDOM)
+
+### Phase 4: Advanced Tactical Coaching & Bio-Hacking (Backlog)
+- [x] **Visualización Predictiva**: Gráfica de tendencia ACWR con "Zonas de Seguridad" y "Zonas de Riesgo".
+- [ ] **Indicador de Disponibilidad**: Widget de "Batería Biométrica" (HRV + Sueño + Carga).
+- [ ] **Estrategia Situacional**: Simulador de Oponentes (Gemini genera planes contra perfiles específicos).
+- [ ] **Micro-Misiones**: Sistema de objetivos de Randori accionables con validación post-entreno.
+- [ ] **Gamificación Técnica**: Niveles de Maestría visuales (Bronce/Plata/Oro) basados en feedback real.
+- [ ] **Pre-Hab Adaptativo**: Rutinas de movilidad generadas por IA según el nivel de fatiga y ACWR.
+- [ ] **Sincronización Nutricional**: Ajuste automático de macros/hidratación según la intensidad del Randori.
+- [ ] **Reporte "Estado de Combate" Pro**: Exportación de informes técnicos en PDF/Markdown para seguimiento externo.
 
 ## 4. Completed Tasks
 ...

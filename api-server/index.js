@@ -153,6 +153,76 @@ app.get('/api/metrics/mental/trend', async (req, res) => {
   }
 });
 
+// Endpoint: Fatigue Trend (ACWR) - Prediction Focus
+app.get('/api/metrics/fatigue/trend', async (req, res) => {
+  try {
+    const query = `
+      WITH past_load AS (
+          SELECT 
+              date_group as date,
+              SUM(load) as total_load
+          FROM (
+              SELECT 
+                  DATE(start_time) as date_group,
+                  COALESCE((context_metadata->>'duration_minutes')::INT, 60) * COALESCE(cognitive_load_rpe, 5) as load
+              FROM activity_logs
+              UNION ALL
+              SELECT 
+                  DATE(timestamp) as date_group,
+                  step_count / 100.0 as load
+              FROM metrics_biometric
+              WHERE step_count IS NOT NULL
+          ) t
+          GROUP BY date_group
+      ),
+      avg_recent_load AS (
+          SELECT COALESCE(AVG(total_load), 0) as avg_load
+          FROM past_load
+          WHERE date >= CURRENT_DATE - INTERVAL '14 days'
+      ),
+      future_dates AS (
+          SELECT generate_series(
+              CURRENT_DATE, 
+              (CURRENT_DATE + INTERVAL '14 days')::DATE, 
+              '1 day'::interval
+          )::DATE as date
+      ),
+      combined_load AS (
+          SELECT date, total_load, false as is_predicted FROM past_load
+          UNION ALL
+          SELECT fd.date, arl.avg_load as total_load, true as is_predicted 
+          FROM future_dates fd, avg_recent_load arl
+          WHERE fd.date NOT IN (SELECT date FROM past_load)
+      ),
+      moving_averages AS (
+          SELECT 
+              date,
+              total_load,
+              is_predicted,
+              AVG(total_load) OVER (ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as acute_workload,
+              AVG(total_load) OVER (ORDER BY date ROWS BETWEEN 27 PRECEDING AND CURRENT ROW) as chronic_workload
+          FROM combined_load
+      )
+      SELECT 
+          date,
+          ROUND(acute_workload::numeric, 2) as acute_workload,
+          ROUND(chronic_workload::numeric, 2) as chronic_workload,
+          CASE 
+              WHEN chronic_workload > 0 THEN ROUND((acute_workload / chronic_workload)::numeric, 2)
+              ELSE 1.0
+          END as acwr,
+          is_predicted
+      FROM moving_averages
+      WHERE date >= CURRENT_DATE
+      ORDER BY date ASC;
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Endpoint: Nutrition Logs
 app.get('/api/nutrition', async (req, res) => {
   try {
@@ -472,34 +542,47 @@ app.patch('/api/coach/techniques/:id', async (req, res) => {
 // Endpoint: Delete Technique
 app.delete('/api/coach/techniques/:id', async (req, res) => {
   const { id } = req.params;
+  console.log('Attempting to delete technique:', id);
   try {
-    await pool.query('DELETE FROM judoka_techniques WHERE id = $1', [id]);
-    res.json({ success: true, message: 'Técnica eliminada correctamente.' });
+    const result = await pool.query('DELETE FROM judoka_techniques WHERE id = $1', [id]);
+    console.log('Delete result rowCount:', result.rowCount);
+    res.json({ success: true, id, message: 'Técnica eliminada correctamente.' });
   } catch (err) {
+    console.error('Error deleting technique:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Endpoint: Get Coaching Recommendation
+// Endpoint: Get Coaching Recommendation (Persistent)
 app.get('/api/coach/recommendation', async (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  try {
+    const cachedRec = await pool.query('SELECT * FROM coach_recommendations WHERE target_date = $1', [today]);
+    if (cachedRec.rows.length > 0) {
+      return res.json(cachedRec.rows[0]);
+    }
+    res.json(null);
+  } catch (err) {
+    console.error('Error fetching cached recommendation:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint: Trigger AI Coach Generation
+app.post('/api/coach/recommendation/generate', async (req, res) => {
   try {
     const profileRes = await pool.query('SELECT id FROM judoka_profile LIMIT 1');
     if (profileRes.rows.length === 0) {
       return res.status(400).json({ error: 'Debes completar tu perfil de Judoka primero.' });
     }
 
-    // Ejecutar el motor de IA del Coach de forma ASÍNCRONA para no bloquear el event loop
-    console.log('Running AI Coach Engine (async)...');
+    console.log('Manually triggering AI Coach Engine...');
     exec('docker exec aegis-inference node /app/get_coach_advice.js', (error, stdout, stderr) => {
       if (error) {
-        console.error('Coach recommendation error:', error.message);
-        return res.json({
-          tachi_waza_focus: "Uchi-komi técnico",
-          ne_waza_focus: "Movilidad y control",
-          rationale: "El motor de IA ha fallado o está ocupado. Usando protocolo de contingencia."
-        });
+        console.error('Generation Error:', error);
+        return res.status(500).json({ error: 'Failed to generate recommendation' });
       }
-
+      
       const jsonMatch = stdout.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
@@ -508,15 +591,10 @@ app.get('/api/coach/recommendation', async (req, res) => {
           res.status(500).json({ error: 'Failed to parse AI response' });
         }
       } else {
-        res.json({
-          tachi_waza_focus: "Refuerzo de fundamentos",
-          ne_waza_focus: "Transiciones básicas",
-          rationale: "La IA no devolvió un formato válido. Revisa los logs del motor de inferencia."
-        });
+        res.status(500).json({ error: 'AI Engine failed to return valid JSON' });
       }
     });
   } catch (err) {
-    console.error('Coach recommendation internal error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

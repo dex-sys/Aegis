@@ -2,11 +2,34 @@ import { useState, useEffect, useRef } from 'react'
 import { Activity, Brain, Moon, Zap, BarChart3, Clock, TrendingUp, Upload, X, ChevronRight, Filter, Plus, Save, Info, Trash2, Utensils } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, AreaChart, Area
+  BarChart, Bar, AreaChart, Area, ReferenceLine, ReferenceArea
 } from 'recharts'
 import axios from 'axios'
 
 const API_BASE_URL = 'http://localhost:3001/api'
+
+// --- Helpers de Formateo ---
+const formatDate = (dateStr: string | null) => {
+  if (!dateStr) return '--'
+  const date = new Date(dateStr)
+  // Formato: DD/MM/YYYY HH:mm (evitando la Z y milisegundos)
+  return date.toLocaleString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).replace(',', '')
+}
+
+const formatDateShort = (dateStr: string | null) => {
+  if (!dateStr) return '--'
+  const date = new Date(dateStr)
+  return date.toLocaleString('es-ES', {
+    day: 'numeric',
+    month: 'short'
+  })
+}
 
 // --- Componente de Ayuda para Métricas ---
 const MetricTooltip = ({ title, description, ranges }: any) => (
@@ -54,6 +77,7 @@ const Dashboard = () => {
   const [biometricTrend, setBiometricTrend] = useState<any[]>([])
   const [mentalTrend, setMentalTrend] = useState<any[]>([])
   const [inferenceTrend, setInferenceTrend] = useState<any[]>([])
+  const [fatigueTrend, setFatigueTrend] = useState<any[]>([])
   const [activities, setActivities] = useState<any[]>([])
   const [systemStatus, setSystemStatus] = useState<string>('idle')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -126,7 +150,8 @@ const Dashboard = () => {
         axios.get(`${API_BASE_URL}/inference/trend`),
         axios.get(`${API_BASE_URL}/activities`),
         axios.get(`${API_BASE_URL}/status`),
-        axios.get(`${API_BASE_URL}/alerts`)
+        axios.get(`${API_BASE_URL}/alerts`),
+        axios.get(`${API_BASE_URL}/metrics/fatigue/trend`)
       ])
 
       if (results[0].status === 'fulfilled') setLatestInference(results[0].value.data)
@@ -139,6 +164,7 @@ const Dashboard = () => {
         setIsAnalyzing(results[5].value.data.value === 'analyzing')
       }
       if (results[6].status === 'fulfilled') setAlerts(results[6].value.data)
+      if (results[7].status === 'fulfilled') setFatigueTrend(results[7].value.data)
       
     } catch (err) {
       console.error("Error fetching dashboard data:", err)
@@ -379,6 +405,130 @@ const Dashboard = () => {
             </div>
           </section>
 
+          {/* Monitor de Riesgo de Lesión (ACWR) */}
+          <section className="bg-slate-900/50 border border-slate-800 rounded-[3rem] p-10 md:p-12 shadow-2xl backdrop-blur-sm relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+              <TrendingUp className="w-64 h-64 text-primary" />
+            </div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 relative z-10">
+              <div className="flex items-center gap-4">
+                <div className="bg-orange-500/20 p-3 rounded-2xl border border-orange-500/20">
+                  <TrendingUp className="text-primary w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight text-white uppercase">Visualización Predictiva ACWR</h2>
+                  <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mt-1">Tendencia de carga y riesgo de sobreentrenamiento</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-6 bg-slate-950/40 p-4 rounded-2xl border border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_#f97316]" />
+                  <span className="text-[9px] font-black uppercase text-slate-400">Ratio ACWR</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full" />
+                  <span className="text-[9px] font-black uppercase text-slate-400">Carga Crónica</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 border border-primary border-dashed rounded-full" />
+                  <span className="text-[9px] font-black uppercase text-slate-400">Carga Aguda</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="h-[300px] w-full relative z-10">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={fatigueTrend}>
+                  <defs>
+                    <linearGradient id="colorACWR" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#475569" 
+                    fontSize={10} 
+                    fontWeight="bold"
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={formatDateShort}
+                  />
+                  <YAxis 
+                    stroke="#475569" 
+                    fontSize={10} 
+                    fontWeight="bold"
+                    axisLine={false}
+                    tickLine={false}
+                    domain={[0, (dataMax: number) => Math.max(2, Math.ceil(dataMax * 1.2))]} 
+                  />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '1.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}
+                    itemStyle={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                    labelStyle={{ color: '#94a3b8', fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '10px' }}
+                    labelFormatter={formatDate}
+                    cursor={{ stroke: '#f97316', strokeWidth: 2, strokeDasharray: '5 5' }}
+                  />
+                  
+                  {/* Zonas de Riesgo Coloreadas */}
+                  <ReferenceArea y1={0.8} y2={1.3} fill="#22c55e" fillOpacity={0.05} />
+                  <ReferenceArea y1={1.5} y2={4} fill="#ef4444" fillOpacity={0.05} />
+                  
+                  <ReferenceLine y={1.5} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={2} />
+                  <ReferenceLine y={0.8} stroke="#6366f1" strokeDasharray="3 3" strokeWidth={2} />
+                  <ReferenceLine y={1.3} stroke="#22c55e" strokeDasharray="3 3" strokeOpacity={0.3} />
+
+                  <Area 
+                    type="monotone" 
+                    dataKey="acwr" 
+                    data={fatigueTrend}
+                    stroke="#f97316" 
+                    strokeWidth={4} 
+                    strokeDasharray="5 5"
+                    fillOpacity={1} 
+                    fill="url(#colorACWR)" 
+                    animationDuration={1500}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="acwr" 
+                    data={fatigueTrend.filter(d => !d.is_predicted)}
+                    stroke="#f97316" 
+                    strokeWidth={4} 
+                    strokeDasharray="0"
+                    fillOpacity={0} 
+                    fill="transparent"
+                    animationDuration={1500}
+                  />
+                  
+                  {/* Líneas de Carga (Normalizadas para visualización si es necesario, pero aquí usamos valores reales) */}
+                  {/* Como los valores de carga pueden ser mucho más altos que el ACWR (que es un ratio), 
+                      podríamos necesitar un eje Y secundario o normalizarlos para que "quepan" en el gráfico 
+                      y ver la relación visual. Para simplicidad ahora solo mostramos el ACWR como área. */}
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10 relative z-10">
+              <div className="bg-slate-950/40 p-6 rounded-3xl border border-slate-800/50">
+                <p className="text-success text-[10px] font-black uppercase tracking-widest mb-1">Zona Óptima</p>
+                <p className="text-white font-bold text-sm">0.8 - 1.3</p>
+                <p className="text-slate-500 text-[10px] mt-2 leading-relaxed">Máxima adaptación fisiológica con riesgo mínimo.</p>
+              </div>
+              <div className="bg-slate-950/40 p-6 rounded-3xl border border-slate-800/50">
+                <p className="text-warning text-[10px] font-black uppercase tracking-widest mb-1">Precaución</p>
+                <p className="text-white font-bold text-sm">1.3 - 1.5</p>
+                <p className="text-slate-500 text-[10px] mt-2 leading-relaxed">Incremento rápido de carga. Monitorear fatiga.</p>
+              </div>
+              <div className="bg-slate-950/40 p-6 rounded-3xl border border-slate-800/50">
+                <p className="text-danger text-[10px] font-black uppercase tracking-widest mb-1">Riesgo Crítico</p>
+                <p className="text-white font-bold text-sm">{'>'} 1.5</p>
+                <p className="text-slate-500 text-[10px] mt-2 leading-relaxed">Zona de peligro. Alta probabilidad de lesión.</p>
+              </div>
+            </div>
+          </section>
+
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
             <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8 shadow-xl overflow-hidden flex flex-col">
               <h3 className="text-sm font-black uppercase tracking-widest mb-6 text-slate-400 flex items-center gap-2">
@@ -395,7 +545,7 @@ const Dashboard = () => {
                     </button>
                     <div className="flex justify-between items-start mb-1 pr-6">
                       <p className="text-xs font-black uppercase text-primary tracking-tighter">{act.activity_type}</p>
-                      <p className="text-[10px] text-slate-500">{new Date(act.start_time).toLocaleDateString()}</p>
+                      <p className="text-[10px] text-slate-500">{formatDate(act.start_time)}</p>
                     </div>
                     <p className="text-sm font-bold text-white">
                       RPE: <span className="text-primary">{act.cognitive_load_rpe}</span>
@@ -433,6 +583,7 @@ const Dashboard = () => {
                   <LineChart data={inferenceTrend.slice(-10)}>
                     <XAxis dataKey="target_date" hide />
                     <YAxis domain={[0, 1]} hide />
+                    <Tooltip labelFormatter={formatDate} />
                     <Line type="monotone" dataKey="readiness_score" stroke="#f97316" strokeWidth={4} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -451,10 +602,12 @@ const Dashboard = () => {
                     <YAxis hide domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]} />
                     <Tooltip 
                       cursor={{fill: 'transparent'}}
-                      content={({ active, payload }: any) => {
+                      labelFormatter={formatDate}
+                      content={({ active, payload, label }: any) => {
                         if (active && payload && payload.length) {
                           return (
                             <div className="bg-slate-900 border border-slate-800 p-2 rounded-lg shadow-xl">
+                              <p className="text-[10px] font-black text-slate-500 mb-1">{formatDate(label)}</p>
                               <p className="text-[10px] font-black text-primary">{payload[0].value.toLocaleString()} PASOS</p>
                             </div>
                           );
@@ -475,8 +628,10 @@ const Dashboard = () => {
                   <span className="text-indigo-400 font-black">{biometricTrend[biometricTrend.length - 1].sleep_score} pts</span>
                 )}
               </h3>
-              <div className="h-40 w-full pointer-events-none">                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-40 w-full pointer-events-none">
+                <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={biometricTrend.slice(-10)}>
+                    <Tooltip labelFormatter={formatDate} />
                     <Bar dataKey="sleep_deep" stackId="sleep" fill="#312e81" />
                     <Bar dataKey="sleep_rem" stackId="sleep" fill="#4338ca" />
                     <Bar dataKey="sleep_light" stackId="sleep" fill="#6366f1" />

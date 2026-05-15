@@ -4,6 +4,19 @@ import axios from 'axios'
 
 const API_BASE_URL = 'http://localhost:3001/api'
 
+// --- Helpers de Formateo ---
+const formatDate = (dateStr: string | null) => {
+  if (!dateStr) return '--'
+  const date = new Date(dateStr)
+  return date.toLocaleString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).replace(',', '')
+}
+
 const Nutrition = () => {
   console.log("DEBUG: Rendering Nutrition Page");
   const [mealText, setMealText] = useState("")
@@ -270,16 +283,13 @@ const Nutrition = () => {
               <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
                 {Array.isArray(nutritionLogs) && nutritionLogs.map(log => (
                   <div key={log.id} className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl group relative transition-all hover:border-slate-700">
-                    <div className="flex justify-between items-start mb-2 mr-10">
+                    <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center gap-2 text-primary">
                         <Clock className="w-3 h-3" />
                         <span className="text-[10px] font-black uppercase tracking-tighter">
-                          {new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          {formatDate(log.timestamp)}
                         </span>
                       </div>
-                      <span className="text-[10px] text-slate-500 font-bold">
-                        {new Date(log.timestamp).toLocaleDateString()}
-                      </span>
                     </div>
 
                     <p className="text-xs text-slate-400 mb-4 italic pr-8">"{log.raw_text}"</p>
@@ -324,7 +334,7 @@ const Nutrition = () => {
                   <div key={log.id} className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl flex justify-between items-center">
                     <div>
                       <p className="text-sm font-black text-white uppercase tracking-tight">{log.item_name}</p>
-                      <p className="text-[10px] text-slate-500 font-bold">{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                      <p className="text-[10px] text-slate-500 font-bold">{formatDate(log.timestamp)}</p>
                     </div>
                     <div className="text-right">
                       <span className="text-lg font-black text-indigo-400">{log.amount}{log.unit}</span>

@@ -82,6 +82,10 @@ describe('Coach Page Acceptance Tests', () => {
     })
     expect(screen.getByText(/Sankaku-jime/i)).toBeInTheDocument()
     expect(screen.getByText(/Osoto-gari/i)).toBeInTheDocument()
+
+    // Verify ACWR and Mastery Points
+    expect(screen.getByText(/Riesgo de Lesión \(ACWR\)/i)).toBeInTheDocument()
+    expect(screen.getByText(/Puntos de Maestría Acumulados/i)).toBeInTheDocument()
   })
 
   it('debe permitir añadir una nueva técnica', async () => {
