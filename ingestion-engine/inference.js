@@ -32,10 +32,7 @@ async function runInference() {
         AVG(hrv_ms) as avg_hrv,
         SUM(step_count) as daily_steps,
         (SUM(sleep_duration_seconds) / 3600.0)::FLOAT as sleep_hours,
-        (SUM(sleep_rem_seconds) / 3600.0)::FLOAT as sleep_rem,
-        (SUM(sleep_deep_seconds) / 3600.0)::FLOAT as sleep_deep,
-        (SUM(sleep_light_seconds) / 3600.0)::FLOAT as sleep_light,
-        (SUM(sleep_awake_seconds) / 3600.0)::FLOAT as sleep_awake
+        SUM(sleep_score) as sleep_score_sum -- Para promediar si hay varios registros
       FROM (
         SELECT 
           CASE 
@@ -43,43 +40,82 @@ async function runInference() {
             ELSE DATE(timestamp + interval '6 hours')
           END as date_group,
           rhr_bpm, hrv_ms, step_count, 
-          sleep_duration_seconds, sleep_rem_seconds, sleep_deep_seconds, sleep_light_seconds, sleep_awake_seconds
+          sleep_duration_seconds, sleep_score
         FROM metrics_biometric
         WHERE timestamp > NOW() - INTERVAL '35 days'
       ) as adjusted_metrics
       GROUP BY date_group
       ORDER BY date_group DESC
-      LIMIT 28
+      LIMIT 35
     `);
 
-    // Calcular Fatigue Metrics (Training Load = (RPE * Duration) + (Steps / 100))
-    const calculateWorkload = (days) => {
-      const now = new Date();
-      const cutoff = new Date(now);
-      cutoff.setDate(cutoff.getDate() - days);
+    // Obtener Tendencia de Salud Mental para el ACWR Holístico
+    const mentalTrendResult = await dbClient.query(`
+      SELECT 
+        DATE(timestamp) as date,
+        AVG(stress_level) as avg_stress,
+        AVG(mood_score) as avg_mood
+      FROM metrics_mental_health
+      WHERE timestamp > NOW() - INTERVAL '35 days'
+      GROUP BY DATE(timestamp)
+      ORDER BY date DESC
+    `);
 
-      // 1. Carga por Actividades (Judo, etc)
-      const activityLoad = activityResult.rows
-        .filter(act => new Date(act.start_time) > cutoff)
-        .reduce((acc, act) => {
+    // Calcular Fatigue Metrics Holísticas (Carga = ((RPE * Duration) + (Steps / 100)) * SleepModifier * StressModifier)
+    const calculateHolisticWorkload = (days) => {
+      const now = new Date();
+      let totalWeightedLoad = 0;
+
+      for (let i = 0; i < days; i++) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+
+        // 1. Carga Base (Actividades + Pasos)
+        const dayActivities = activityResult.rows.filter(act => 
+          new Date(act.start_time).toISOString().split('T')[0] === dateStr
+        );
+        const activityLoad = dayActivities.reduce((acc, act) => {
           const duration = act.context_metadata?.duration_minutes || 60;
           const rpe = act.cognitive_load_rpe || 5;
           return acc + (duration * rpe);
         }, 0);
 
-      // 2. Carga por Movimiento Base (Pasos)
-      // Normalización: 10,000 pasos = 100 unidades de carga (equivalente a actividad moderada)
-      const stepLoad = trendResult.rows
-        .filter(row => new Date(row.date) > cutoff)
-        .reduce((acc, row) => {
-          return acc + (parseInt(row.daily_steps || 0) / 100);
-        }, 0);
+        const dayTrend = trendResult.rows.find(row => 
+          new Date(row.date).toISOString().split('T')[0] === dateStr
+        );
+        const stepLoad = dayTrend ? (parseInt(dayTrend.daily_steps || 0) / 100) : 0;
+        
+        const baseLoad = activityLoad + stepLoad;
 
-      return activityLoad + stepLoad;
+        // 2. Multiplicadores Holísticos
+        let sleepMultiplier = 1.0;
+        if (dayTrend && dayTrend.sleep_hours > 0) {
+          const hours = dayTrend.sleep_hours;
+          if (hours < 6) sleepMultiplier = 1.4;
+          else if (hours < 7) sleepMultiplier = 1.2;
+          else if (hours > 8.5) sleepMultiplier = 0.9; // Recuperación extra
+        }
+
+        let stressMultiplier = 1.0;
+        const dayMental = mentalTrendResult.rows.find(row => 
+          new Date(row.date).toISOString().split('T')[0] === dateStr
+        );
+        if (dayMental && dayMental.avg_stress) {
+          const stress = dayMental.avg_stress;
+          if (stress >= 8) stressMultiplier = 1.5;
+          else if (stress >= 6) stressMultiplier = 1.2;
+          else if (stress <= 3) stressMultiplier = 0.9;
+        }
+
+        totalWeightedLoad += (baseLoad * sleepMultiplier * stressMultiplier);
+      }
+
+      return totalWeightedLoad;
     };
 
-    const acuteWorkload = calculateWorkload(7) / 7;
-    const chronicWorkload = calculateWorkload(28) / 28;
+    const acuteWorkload = calculateHolisticWorkload(7) / 7;
+    const chronicWorkload = calculateHolisticWorkload(28) / 28;
     const acwr = chronicWorkload > 0 ? (acuteWorkload / chronicWorkload).toFixed(2) : 1.0;
 
     const mentalResult = await dbClient.query('SELECT * FROM metrics_mental_health ORDER BY timestamp DESC LIMIT 5');
@@ -103,7 +139,7 @@ async function runInference() {
         acute_workload_7d: Math.round(acuteWorkload),
         chronic_workload_28d: Math.round(chronicWorkload),
         acwr_ratio: acwr, // 0.8-1.3 is the "sweet spot", >1.5 is danger
-        description: "Relación entre carga aguda y crónica para predecir sobreentrenamiento."
+        description: "Relación entre carga aguda y crónica ponderada por calidad de sueño y estrés mental (ACWR Holístico)."
       },
       recent_activities: activityResult.rows.slice(0, 5),
       biometric_trends_28d: trendResult.rows,
