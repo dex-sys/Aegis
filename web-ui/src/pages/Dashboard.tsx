@@ -74,6 +74,7 @@ const Modal = ({ isOpen, onClose, title, children }: any) => {
 
 const Dashboard = () => {
   const [latestInference, setLatestInference] = useState<any>(null)
+  const [battery, setBattery] = useState<any>(null)
   const [biometricTrend, setBiometricTrend] = useState<any[]>([])
   const [mentalTrend, setMentalTrend] = useState<any[]>([])
   const [inferenceTrend, setInferenceTrend] = useState<any[]>([])
@@ -151,7 +152,8 @@ const Dashboard = () => {
         axios.get(`${API_BASE_URL}/activities`),
         axios.get(`${API_BASE_URL}/status`),
         axios.get(`${API_BASE_URL}/alerts`),
-        axios.get(`${API_BASE_URL}/metrics/fatigue/trend`)
+        axios.get(`${API_BASE_URL}/metrics/fatigue/trend`),
+        axios.get(`${API_BASE_URL}/metrics/battery`)
       ])
 
       if (results[0].status === 'fulfilled') setLatestInference(results[0].value.data)
@@ -165,6 +167,7 @@ const Dashboard = () => {
       }
       if (results[6].status === 'fulfilled') setAlerts(results[6].value.data)
       if (results[7].status === 'fulfilled') setFatigueTrend(results[7].value.data)
+      if (results[8].status === 'fulfilled') setBattery(results[8].value.data)
       
     } catch (err) {
       console.error("Error fetching dashboard data:", err)
@@ -304,6 +307,39 @@ const Dashboard = () => {
           </button>
 
           <div className="bg-slate-900/40 border border-slate-800 p-1 rounded-[2rem] flex items-center shadow-2xl backdrop-blur-xl">
+            {/* Widget Batería Biométrica */}
+            <div className="px-6 py-4 flex items-center gap-4 group relative border-r border-slate-800">
+               <div className="relative w-8 h-14 bg-slate-950 border-2 border-slate-800 rounded-md p-1 flex flex-col justify-end overflow-hidden">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -mt-1 w-3 h-1 bg-slate-800 rounded-t-sm" />
+                  <div 
+                    className={`w-full transition-all duration-1000 rounded-sm ${
+                      (battery?.level || 0) > 70 ? 'bg-success shadow-[0_0_15px_rgba(34,197,94,0.4)]' :
+                      (battery?.level || 0) > 30 ? 'bg-warning shadow-[0_0_15px_rgba(234,179,8,0.4)]' :
+                      'bg-danger shadow-[0_0_15px_rgba(239,68,68,0.4)]'
+                    }`}
+                    style={{ height: `${battery?.level || 0}%` }}
+                  />
+               </div>
+               <div>
+                  <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-0.5">Batería</p>
+                  <p className={`text-xl font-black ${
+                    (battery?.level || 0) > 70 ? 'text-success' :
+                    (battery?.level || 0) > 30 ? 'text-warning' : 'text-danger'
+                  }`}>
+                    {battery?.level || '--'}<span className="text-[10px] opacity-50">%</span>
+                  </p>
+               </div>
+               <MetricTooltip 
+                  title="Batería Biométrica"
+                  description="Representación visual de tu energía total disponible. Combina Readiness (IA), Calidad de Sueño y variabilidad de frecuencia cardíaca (HRV)."
+                  ranges={[
+                    { label: 'Readiness', value: `${battery?.factors?.readiness || 0}%`, color: 'text-primary' },
+                    { label: 'Sueño', value: `${battery?.factors?.sleep_score || 0}/100`, color: 'text-indigo-400' },
+                    { label: 'Estatus HRV', value: (battery?.factors?.hrv_status || '--').toUpperCase(), color: 'text-success' }
+                  ]}
+               />
+            </div>
+
             {systemStatus === 'processing' && (
               <div className="flex items-center gap-2 px-4 animate-pulse">
                 <div className="w-2 h-2 bg-primary rounded-full" />

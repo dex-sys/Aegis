@@ -42,7 +42,8 @@ Motor de Inferencia para la Optimización del Rendimiento (Quantified Self AI). 
 ### Phase 4: Advanced Tactical Coaching & Bio-Hacking (Active)
 - [x] **Visualización Predictiva**: Gráfica de tendencia ACWR con "Zonas de Seguridad" y "Zonas de Riesgo".
 - [x] **Sincronización Nutricional**: Extracción automática de macros (IA) y disparador táctico según carga.
-- [ ] **Indicador de Disponibilidad**: Widget de "Batería Biométrica" (HRV + Sueño + Carga). <-- **CURRENT FOCUS**
+- [x] **Rediseño de Misión del Día**: Dashboard táctico con costes energéticos, prioridades y feedback RPE.
+- [x] **Indicador de Disponibilidad**: Widget de "Batería Biométrica" (HRV + Sueño + Carga).
 - [ ] **Estrategia Situacional**: Simulador de Oponentes (Gemini genera planes contra perfiles específicos).
 - [ ] **Micro-Misiones**: Sistema de objetivos de Randori accionables con validación post-entreno.
 - [ ] **Gamificación Técnica**: Niveles de Maestría visuales (Bronce/Plata/Oro) basados en feedback real.
