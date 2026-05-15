@@ -6,6 +6,7 @@
 const { Client } = require('pg');
 const { execSync } = require('child_process');
 const fs = require('fs');
+const { retrieveContext, formatContextForPrompt } = require('./lib/retriever');
 
 const dbClient = new Client({
   connectionString: process.env.DATABASE_URL,
@@ -42,6 +43,11 @@ async function getAdvice() {
       ORDER BY target_date DESC LIMIT 1
     `);
 
+    // 4. RECUPERACIÓN RAG: Respuestas históricas a comidas y suplementos
+    const searchQuery = `nutrición digestión suplementos energía comidas recuperación inflamación`;
+    const ragContext = await retrieveContext(searchQuery, 3);
+    const formattedRAG = formatContextForPrompt(ragContext);
+
     const context = {
       currentTime: new Date().toLocaleTimeString(),
       todayNutrition: nutritionResult.rows[0],
@@ -50,10 +56,10 @@ async function getAdvice() {
       fatigue_metrics: inferenceResult.rows[0]?.inference_metadata?.fatigue_engine || {}
     };
 
-    // 4. Preparar el Prompt
+    // 5. Preparar el Prompt
     const prompt = `
 Actúa como un Nutricionista Deportivo especializado en Biohacking y Timing Nutricional.
-Tu tarea es proveer recomendaciones hiper-específicas de comida y suplementación en tiempo real ("In-the-moment").
+Tu tarea es proveer recomendaciones hiper-específicas de comida y suplementación en tiempo real.
 
 TELEMETRÍA ACTUAL:
 - Hora Local: ${context.currentTime}
@@ -62,16 +68,19 @@ TELEMETRÍA ACTUAL:
 - Readiness: ${JSON.stringify(context.readiness)}
 - Carga Fisiológica (ACWR): ${JSON.stringify(context.fatigue_metrics)}
 
+${formattedRAG}
+
 REGLAS DE OPTIMIZACIÓN:
-1. Sincronización Circadiana: Si es tarde (después de las 20:00), no recomiendes estimulantes ni digestiones pesadas; prioriza caseína, magnesio o triptófano. Si es por la mañana, prioriza energía sostenida o hidratación profunda.
-2. Compensación de Carga: Si el ACWR es alto (riesgo de inflamación/fatiga) o el Readiness es bajo, recomienda alimentos antiinflamatorios (Omega 3, antioxidantes) y asegura un superávit de proteínas.
-3. Precisión Práctica: No digas "consume proteínas y carbohidratos". Di "Un batido de suero (30g) con un plátano y creatina" o "Salmón al horno con boniato".
+1. Sincronización Circadiana: Si es tarde (después de las 20:00), no recomiendes estimulantes ni digestiones pesadas.
+2. Compensación de Carga: Si el ACWR es alto o el Readiness es bajo, recomienda alimentos antiinflamatorios.
+3. Precisión Práctica: Indica alimentos específicos y protocolos de suplementación.
+4. Memoria Histórica: Utiliza el CONTEXTO SEMÁNTICO RECUPERADO (RAG) para evitar alimentos que sentaron mal en el pasado o replicar protocolos de éxito.
 
 CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Markdown (\`\`\`json).
 {
   "food_recommendation": "Alimento o comida específica recomendada (corto y accionable)",
   "supplement_recommendation": "Suplemento o protocolo específico para este momento",
-  "rationale": "Explicación biológica vinculando la recomendación con la hora actual y la fatiga"
+  "rationale": "Explicación biológica vinculando la recomendación con la hora actual, la fatiga y el historial del RAG"
 }
 `;
 

@@ -41,6 +41,7 @@ services:
       DATABASE_URL: postgresql://aegis_admin:aegis_vault_password@db:5432/aegis_db
     volumes:
       - ./ingestion-engine:/app
+      - ./data/knowledge:/app/data/knowledge
       - /app/node_modules
       - gemini_state:/root/.gemini # Comparten la misma sesión de login
     depends_on:

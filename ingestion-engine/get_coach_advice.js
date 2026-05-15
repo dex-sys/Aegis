@@ -6,6 +6,7 @@
 const { Client } = require('pg');
 const { execSync } = require('child_process');
 const fs = require('fs');
+const { retrieveContext, formatContextForPrompt } = require('./lib/retriever');
 
 const dbClient = new Client({
   connectionString: process.env.DATABASE_URL,
@@ -18,7 +19,7 @@ async function getCoachAdvice() {
   const promptFile = `coach_prompt_${Date.now()}.txt`;
 
   try {
-    // 1. Obtener Perfil, Contexto y Feedback Reciente
+    // 1. Obtener Perfil y Contexto Fisiológico
     const [profileRes, inferenceRes, techRes, feedbackRes] = await Promise.all([
       dbClient.query('SELECT * FROM judoka_profile LIMIT 1'),
       dbClient.query('SELECT readiness_score, fatigue_level, recommendation_summary, inference_metadata FROM inference_results ORDER BY target_date DESC LIMIT 1'),
@@ -33,45 +34,44 @@ async function getCoachAdvice() {
     const techniques = techRes.rows;
     const recentFeedback = feedbackRes.rows;
 
-    // 2. Preparar el Prompt para Gemini
+    // 2. RECUPERACIÓN RAG: Buscar patrones históricos y principios expertos
+    // Buscamos por estilo preferido, lesiones y fatiga actual
+    const searchQuery = `${profile.preferred_style} ${profile.injury_history} fatiga judo técnica`;
+    const ragContext = await retrieveContext(searchQuery, 3);
+    const formattedRAG = formatContextForPrompt(ragContext);
+
+    // 3. Preparar el Prompt para Gemini
     const prompt = `
 Actúa como un Entrenador Olímpico de Judo y Analista Táctico de Datos.
-Tu misión es diseñar el foco técnico (micro-misión) para la sesión de Randori de hoy, optimizando la progresión hacia el próximo Dan y minimizando el riesgo de lesión.
+Tu misión es diseñar el foco técnico para hoy, optimizando la progresión y minimizando riesgos.
 
-PERFIL DEL JUDOKA:
-- Grado: ${profile.belt_rank}
-- Categoría: ${profile.weight_category}
-- Estilo/Tokui-Waza: ${profile.preferred_style}
-- Lesiones Históricas: ${profile.injury_history}
-- Objetivos: ${profile.goals}
+PERFIL: ${profile.belt_rank}, ${profile.weight_category}, Estilo: ${profile.preferred_style}.
+ESTADO: Readiness ${systemContext.readiness_score}, Fatiga ACWR ${systemContext.inference_metadata?.fatigue_engine?.acwr_ratio || 'N/A'}.
 
-ESTADO DE SISTEMA:
-- Readiness (0-1): ${systemContext.readiness_score}
-- ACWR (Fatiga): ${systemContext.inference_metadata?.fatigue_engine?.acwr_ratio || 'N/A'}
-- Estado: ${systemContext.recommendation_summary}
+${formattedRAG}
 
-HISTORIAL DE RENDIMIENTO (Últimos Randoris):
-${recentFeedback.map(f => `- Fecha: ${f.target_date.toISOString().split('T')[0]}, Tachi-waza: ${f.tachi_waza_success ? 'ÉXITO' : 'FALLO'}, Ne-waza: ${f.ne_waza_success ? 'ÉXITO' : 'FALLO'}, Notas: ${f.notes}`).join('\n') || 'Sin registros recientes.'}
+HISTORIAL RECIENTE (Últimos 5):
+${recentFeedback.map(f => `- Tachi-waza: ${f.tachi_waza_success ? 'ÉXITO' : 'FALLO'}, Ne-waza: ${f.ne_waza_success ? 'ÉXITO' : 'FALLO'}, Notas: ${f.notes}`).join('\n')}
 
-ARSENAL TÉCNICO DISPONIBLE:
-${techniques.map(t => `- ${t.name} (Nivel ${t.mastery_level}/5${t.is_tokui_waza ? ', Tokui-Waza' : ''})`).join('\n')}
+ARSENAL:
+${techniques.map(t => `- ${t.name} (Nivel ${t.mastery_level}/5)`).join('\n')}
 
-DIRECTRICES TÁCTICAS:
-1. Modulación por Fatiga: Si el ACWR es >1.3 o el Readiness es bajo (<0.5), el foco debe ser conservador, defensivo (ej. Kumikata, desplazamientos, control) o de bajo impacto articular, respetando el historial de lesiones.
-2. Bucle de Feedback: Si falló en Tachi-waza recientemente, asigna una técnica correctiva o una variante preparatoria de su Tokui-Waza. Si tuvo éxito, aumenta la complejidad de los encadenamientos (Renraku-waza).
-3. Especificidad: Las recomendaciones deben ser técnicas de Judo precisas y medibles en un Randori, no conceptos abstractos.
+INSTRUCCIONES:
+1. Analiza el Readiness y el RAG. Si el RAG menciona lesiones pasadas en situaciones similares, prioriza la prevención.
+2. Define micro-misiones técnicas medibles.
+3. El razonamiento debe citar por qué se elige este foco basándose en el historial recuperado.
 
-CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Markdown (\`\`\`json).
+IMPORTANTE: Responde ÚNICAMENTE en JSON:
 {
-  "tachi_waza_focus": "string (máx 10 palabras, específico y accionable)",
-  "ne_waza_focus": "string (máx 10 palabras, específico y accionable)",
-  "rationale": "Explicación táctica justificando el foco según la biometría actual y el feedback anterior"
+  "tachi_waza_focus": "string (máx 10 palabras)",
+  "ne_waza_focus": "string (máx 10 palabras)",
+  "rationale": "explicación técnica vinculada a RAG y feedback"
 }
 `;
 
     fs.writeFileSync(promptFile, prompt);
 
-    // 3. Ejecutar Gemini
+    // 4. Ejecutar Gemini
     const GEMINI_CMD = '/usr/local/bin/gemini';
     let geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --prompt ""`).toString();
 

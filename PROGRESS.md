@@ -71,9 +71,9 @@ Motor de Inferencia para la Optimización del Rendimiento (Quantified Self AI). 
 - [x] **Infrastructure**: Enabled `pgvector` in Docker & Schema.
 - [x] **Architecture**: Documented `AI_RAG_ARCHITECTURE.md`.
 - [x] **Narrative Synthesis**: Implemented logic to convert JSON logs to natural language.
-- [ ] **Embedding Worker**: Implementing background sync for semantic memory.
-- [ ] **Knowledge Ingestion**: Populating vector store with expert Judo/Nutrition content.
-- [ ] **Semantic Retrieval**: Integrating vector search into the inference engine prompts.
+- [x] **Embedding Worker**: Implementing background sync for semantic memory.
+- [x] **Knowledge Ingestion**: Populating vector store with expert Judo/Nutrition content.
+- [x] **Semantic Retrieval**: Integrating vector search into the inference engine prompts.
 
 ## 4. Completed Tasks
 - [x] Build and verify Docker environment.
