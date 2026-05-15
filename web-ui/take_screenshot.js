@@ -12,8 +12,10 @@ import { chromium } from '@playwright/test';
     console.log('Navigating to http://localhost:3000...');
     await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
     
-    // Esperar a que el gráfico se renderice
-    await page.waitForTimeout(2000); 
+    console.log('Navigating to /coach...');
+    // Buscar el link que diga ENTRENADOR y hacer click
+    await page.click('text=ENTRENADOR');
+    await page.waitForTimeout(3000); 
     
     console.log('Taking screenshot...');
     await page.screenshot({ path: 'screenshot.png', fullPage: true });

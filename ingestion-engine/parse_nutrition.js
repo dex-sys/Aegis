@@ -26,7 +26,7 @@ async function parseNutrition(logId) {
     // 1. Obtener el texto crudo
     const result = await dbClient.query('SELECT raw_text FROM nutrition_logs WHERE id = $1', [logId]);
     if (result.rows.length === 0) throw new Error('Log not found');
-    
+
     const rawText = result.rows[0].raw_text;
 
     // 2. Preparar el Prompt
@@ -64,13 +64,13 @@ IMPORTANTE: Responde ÚNICAMENTE en formato JSON válido con la siguiente estruc
       console.error('Error executing Gemini CLI:', execErr.stderr?.toString() || execErr.message);
       throw execErr;
     }
-    
+
     const jsonMatch = geminiOutput.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error('Raw Gemini Output:', geminiOutput);
       throw new Error('No valid JSON found in AI output');
     }
-    
+
     let nutrition;
     try {
       nutrition = JSON.parse(jsonMatch[0]);
