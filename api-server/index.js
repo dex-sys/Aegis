@@ -157,10 +157,10 @@ app.get('/api/metrics/mental/trend', async (req, res) => {
 app.get('/api/metrics/fatigue/trend', async (req, res) => {
   try {
     const query = `
-      WITH past_load AS (
+      WITH daily_base_load AS (
           SELECT 
-              date_group as date,
-              SUM(load) as total_load
+              date_group,
+              SUM(load) as base_load
           FROM (
               SELECT 
                   DATE(start_time) as date_group,
@@ -174,6 +174,44 @@ app.get('/api/metrics/fatigue/trend', async (req, res) => {
               WHERE step_count IS NOT NULL
           ) t
           GROUP BY date_group
+      ),
+      daily_modifiers AS (
+          SELECT 
+              date_group,
+              AVG(sleep_mult) as sleep_mult,
+              AVG(stress_mult) as stress_mult
+          FROM (
+              SELECT 
+                DATE(timestamp + interval '6 hours') as date_group,
+                CASE 
+                  WHEN (sleep_duration_seconds / 3600.0) < 6 THEN 1.4
+                  WHEN (sleep_duration_seconds / 3600.0) < 7 THEN 1.2
+                  WHEN (sleep_duration_seconds / 3600.0) > 8.5 THEN 0.9
+                  ELSE 1.0
+                END as sleep_mult,
+                1.0 as stress_mult
+              FROM metrics_biometric
+              WHERE sleep_duration_seconds IS NOT NULL
+              UNION ALL
+              SELECT 
+                DATE(timestamp) as date_group,
+                1.0 as sleep_mult,
+                CASE 
+                  WHEN stress_level >= 8 THEN 1.5
+                  WHEN stress_level >= 6 THEN 1.2
+                  WHEN stress_level <= 3 THEN 0.9
+                  ELSE 1.0
+                END as stress_mult
+              FROM metrics_mental_health
+          ) m
+          GROUP BY date_group
+      ),
+      past_load AS (
+          SELECT 
+              dbl.date_group as date,
+              dbl.base_load * COALESCE(dm.sleep_mult, 1.0) * COALESCE(dm.stress_mult, 1.0) as total_load
+          FROM daily_base_load dbl
+          LEFT JOIN daily_modifiers dm ON dbl.date_group = dm.date_group
       ),
       avg_recent_load AS (
           SELECT COALESCE(AVG(total_load), 0) as avg_load

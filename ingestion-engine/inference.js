@@ -166,7 +166,10 @@ CONFIGURACIÓN DE SEGURIDAD:
 - Considera que el usuario está empezando a trackear ahora.
 
 TAREAS:
-1. Analiza el ACWR (Acute:Chronic Workload Ratio). Si es > 1.5, el riesgo de lesión es alto. Si es < 0.8, hay desentrenamiento.
+1. Analiza el ACWR Holístico (Acute:Chronic Workload Ratio ponderado por recuperación). 
+   - Si ACWR > 1.5: Riesgo alto de lesión/burnout.
+   - Si ACWR < 0.8: Desentrenamiento.
+   - NOTA: Este ratio ya incluye penalizaciones por falta de sueño y estrés mental. Si ves un ACWR alto, investiga si es por exceso de ejercicio o por pobre recuperación.
 2. Evalúa la recuperación biométrica (HRV, Sueño) en relación con la carga (Acute Workload).
 3. Analiza la Nutrición: ¿Es suficiente la energía (kcal) y proteína para la carga de Judo detectada?
 4. Analiza la Salud Mental Percibida (Mood, Stress, Anxiety, Motivation).
