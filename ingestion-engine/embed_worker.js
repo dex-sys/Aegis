@@ -20,44 +20,56 @@ async function getEmbedding(text) {
 
 async function processUnsyncedLogs() {
   await dbClient.connect();
-  console.log('--- RAG Embedding Worker Started ---');
+  console.log('--- RAG Memory Worker Started (FTS Mode) ---');
 
   try {
     // 1. Process Activity Logs
     const activities = await dbClient.query(`
       SELECT a.* FROM activity_logs a
-      LEFT JOIN user_semantic_memory m ON a.id::text = m.metadata->>'source_id'
+      LEFT JOIN user_memory m ON a.id::text = m.metadata->>'source_id'
       WHERE m.id IS NULL
     `);
     
     for (const act of activities.rows) {
       const narrative = synthesizeActivity(act);
-      const vector = await getEmbedding(narrative);
       await dbClient.query(`
-        INSERT INTO user_semantic_memory (event_date, narrative_summary, embedding, context_type, metadata)
-        VALUES ($1, $2, $3, $4, $5)
-      `, [act.start_time, narrative, vector, 'activity', JSON.stringify({ source_id: act.id, table: 'activity_logs' })]);
-      console.log(`Synced activity ${act.id}`);
+        INSERT INTO user_memory (event_date, narrative_summary, context_type, metadata)
+        VALUES ($1, $2, $3, $4)
+      `, [act.start_time, narrative, 'activity', JSON.stringify({ source_id: act.id, table: 'activity_logs' })]);
+      console.log(`Synced memory for activity ${act.id}`);
     }
 
     // 2. Process Nutrition Logs
     const nutrition = await dbClient.query(`
       SELECT n.* FROM nutrition_logs n
-      LEFT JOIN user_semantic_memory m ON n.id::text = m.metadata->>'source_id'
+      LEFT JOIN user_memory m ON n.id::text = m.metadata->>'source_id'
       WHERE n.status = 'processed' AND m.id IS NULL
     `);
 
     for (const nut of nutrition.rows) {
       const narrative = synthesizeNutrition(nut);
-      const vector = await getEmbedding(narrative);
       await dbClient.query(`
-        INSERT INTO user_semantic_memory (event_date, narrative_summary, embedding, context_type, metadata)
-        VALUES ($1, $2, $3, $4, $5)
-      `, [nut.timestamp, narrative, vector, 'nutrition', JSON.stringify({ source_id: nut.id, table: 'nutrition_logs' })]);
-      console.log(`Synced nutrition ${nut.id}`);
+        INSERT INTO user_memory (event_date, narrative_summary, context_type, metadata)
+        VALUES ($1, $2, $3, $4)
+      `, [nut.timestamp, narrative, 'nutrition', JSON.stringify({ source_id: nut.id, table: 'nutrition_logs' })]);
+      console.log(`Synced memory for nutrition ${nut.id}`);
     }
 
-    // TODO: Add Randori and Mental Health sync
+    // 3. Process Randori Feedback
+    const randori = await dbClient.query(`
+      SELECT r.* FROM judo_randori_feedback r
+      LEFT JOIN user_memory m ON r.id::text = m.metadata->>'source_id'
+      WHERE m.id IS NULL
+    `);
+
+    for (const ran of randori.rows) {
+      const narrative = synthesizeRandori(ran);
+      await dbClient.query(`
+        INSERT INTO user_memory (event_date, narrative_summary, context_type, metadata)
+        VALUES ($1, $2, $3, $4)
+      `, [ran.target_date, narrative, 'randori', JSON.stringify({ source_id: ran.id, table: 'judo_randori_feedback' })]);
+      console.log(`Synced memory for randori ${ran.id}`);
+    }
 
     console.log('--- Sync Completed ---');
   } catch (err) {

@@ -1,15 +1,14 @@
 /**
- * Aegis RAG - Retriever Library
- * Handles semantic search across knowledge and user memory.
+ * Aegis RAG - Retriever Library (FTS Mode)
+ * Handles relevant context retrieval using PostgreSQL Full Text Search.
  */
 
 const { Client } = require('pg');
 
-async function getEmbedding(text) {
-  // TODO: Replace with real embedding call (e.g., text-embedding-004)
-  return Array(768).fill(0).map(() => Math.random() * 2 - 1);
-}
-
+/**
+ * Retrieves relevant context based on search terms.
+ * query: String with keywords (e.g., "fatiga hombro estrés")
+ */
 async function retrieveContext(query, limit = 3) {
   const dbClient = new Client({
     connectionString: process.env.DATABASE_URL,
@@ -17,23 +16,27 @@ async function retrieveContext(query, limit = 3) {
   
   try {
     await dbClient.connect();
-    const queryVector = await getEmbedding(query);
+    
+    // Clean query for FTS (convert spaces to | for OR search or & for AND)
+    const formattedQuery = query.trim().split(/\s+/).join(' | ');
 
     // 1. Search in Expert Knowledge
     const knowledgeRes = await dbClient.query(`
-      SELECT raw_text, content_source, (embedding <=> $1::vector) as distance
-      FROM knowledge_embeddings
-      ORDER BY distance ASC
+      SELECT raw_text, content_source, ts_rank(search_vector, to_tsquery('spanish', $1)) as rank
+      FROM knowledge_base
+      WHERE search_vector @@ to_tsquery('spanish', $1)
+      ORDER BY rank DESC
       LIMIT $2
-    `, [JSON.stringify(queryVector), limit]);
+    `, [formattedQuery, limit]);
 
-    // 2. Search in User Semantic Memory
+    // 2. Search in User Memory
     const memoryRes = await dbClient.query(`
-      SELECT narrative_summary, event_date, (embedding <=> $1::vector) as distance
-      FROM user_semantic_memory
-      ORDER BY distance ASC
+      SELECT narrative_summary, event_date, ts_rank(search_vector, to_tsquery('spanish', $1)) as rank
+      FROM user_memory
+      WHERE search_vector @@ to_tsquery('spanish', $1)
+      ORDER BY rank DESC
       LIMIT $2
-    `, [JSON.stringify(queryVector), limit]);
+    `, [formattedQuery, limit]);
 
     return {
       knowledge: knowledgeRes.rows,

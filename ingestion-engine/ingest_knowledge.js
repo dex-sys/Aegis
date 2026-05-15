@@ -21,14 +21,17 @@ async function ingestKnowledge() {
   await dbClient.connect();
   console.log('--- Knowledge Ingestion Started ---');
 
-  const knowledgeDir = path.join(__dirname, '../data/knowledge');
-  if (!fs.existsSync(knowledgeDir)) {
-    console.error('Knowledge directory not found');
+  const knowledgeDir = path.join(__dirname, 'data/knowledge');
+  // Fallback para local vs docker
+  const finalDir = fs.existsSync(knowledgeDir) ? knowledgeDir : path.join(__dirname, '../data/knowledge');
+  
+  if (!fs.existsSync(finalDir)) {
+    console.error(`Knowledge directory not found at: ${knowledgeDir} or ${path.join(__dirname, '../data/knowledge')}`);
     await dbClient.end();
     return;
   }
 
-  const files = fs.readdirSync(knowledgeDir).filter(f => f.endsWith('.txt') || f.endsWith('.md'));
+  const files = fs.readdirSync(finalDir).filter(f => f.endsWith('.txt') || f.endsWith('.md'));
 
   for (const file of files) {
     const filePath = path.join(knowledgeDir, file);
@@ -38,11 +41,10 @@ async function ingestKnowledge() {
     const chunks = content.split('\n\n').filter(c => c.trim().length > 20);
 
     for (const chunk of chunks) {
-      const vector = await getEmbedding(chunk);
       await dbClient.query(`
-        INSERT INTO knowledge_embeddings (content_source, raw_text, embedding, metadata)
-        VALUES ($1, $2, $3, $4)
-      `, [file, chunk.trim(), vector, JSON.stringify({ file: file })]);
+        INSERT INTO knowledge_base (content_source, raw_text, metadata)
+        VALUES ($1, $2, $3)
+      `, [file, chunk.trim(), JSON.stringify({ file: file })]);
       console.log(`Ingested chunk from ${file}`);
     }
   }

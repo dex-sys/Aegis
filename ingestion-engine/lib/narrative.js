@@ -15,7 +15,22 @@ function synthesizeActivity(activity) {
 
 function synthesizeNutrition(log) {
   const date = new Date(log.timestamp).toLocaleDateString('es-ES');
-  const items = log.parsed_items ? JSON.parse(log.parsed_items).join(', ') : 'alimentos no detallados';
+  let items = 'alimentos no detallados';
+  
+  if (log.parsed_items) {
+    try {
+      const parsed = typeof log.parsed_items === 'string' ? JSON.parse(log.parsed_items) : log.parsed_items;
+      if (Array.isArray(parsed)) {
+        items = parsed.join(', ');
+      } else if (typeof parsed === 'object') {
+        items = Object.keys(parsed).join(', ');
+      } else {
+        items = String(parsed);
+      }
+    } catch (e) {
+      items = String(log.parsed_items);
+    }
+  }
   
   return `En la comida del ${date}, el usuario consumió ${log.kcal} kcal, ` +
          `${log.protein_g}g de proteína, ${log.carbs_g}g de carbohidratos y ${log.fats_g}g de grasas. ` +
