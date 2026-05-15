@@ -7,6 +7,7 @@ const API_BASE_URL = 'http://localhost:3001/api'
 const Coach = () => {
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [isEditing, setIsEditing] = useState(false)
   const [recommendation, setRecommendation] = useState<any>(null)
   const [techniques, setTechniques] = useState<any[]>([])
   const [showTechForm, setShowTechForm] = useState(false)
@@ -78,7 +79,7 @@ const Coach = () => {
 
   useEffect(() => {
     fetchProfile()
-  }, [profile?.id])
+  }, [])
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,6 +94,7 @@ const Coach = () => {
         goals: goals
       })
       await fetchProfile()
+      setIsEditing(false)
       alert("Perfil actualizado correctamente.")
     } catch (err: any) {
       console.error("Error saving profile:", err)
@@ -200,7 +202,7 @@ const Coach = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-12 pb-20">
-      {!profile ? (
+      {(!profile || isEditing) ? (
         <section className="bg-slate-900/50 border border-slate-800 p-12 rounded-[3rem] shadow-2xl backdrop-blur-sm">
           <div className="flex items-center gap-6 mb-10">
             <div className="bg-primary/20 p-4 rounded-3xl border border-primary/30">
@@ -208,7 +210,7 @@ const Coach = () => {
             </div>
             <div>
               <h1 className="text-4xl font-black uppercase tracking-tighter text-white">Configuración Judoka</h1>
-              <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Protocolo de Onboarding Técnico</p>
+              <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">{isEditing ? 'Actualizar Perfil Táctico' : 'Protocolo de Onboarding Técnico'}</p>
             </div>
           </div>
 
@@ -280,6 +282,16 @@ const Coach = () => {
             >
               <Save className="w-5 h-5" /> {isSavingProfile ? 'GUARDANDO...' : 'GUARDAR PERFIL TÁCTICO'}
             </button>
+
+            {isEditing && (
+              <button 
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="md:col-span-2 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:text-white transition-all"
+              >
+                Cancelar Edición
+              </button>
+            )}
           </form>
         </section>
       ) : (
@@ -296,7 +308,7 @@ const Coach = () => {
               </div>
             </div>
             <button 
-              onClick={() => setProfile(null)}
+              onClick={() => setIsEditing(true)}
               className="bg-slate-800/50 hover:bg-slate-800 p-4 rounded-2xl text-slate-400 hover:text-white transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
             >
               <Info className="w-5 h-5" /> Editar Perfil
