@@ -66,6 +66,54 @@ const pool = new Pool({
 app.use(cors());
 app.use(express.json());
 
+// Endpoint: Biometric Battery (HRV + Sleep + Readiness)
+app.get('/api/metrics/battery', async (req, res) => {
+  try {
+    const latestInference = await pool.query('SELECT readiness_score, inference_metadata FROM inference_results ORDER BY target_date DESC LIMIT 1');
+    const latestMetrics = await pool.query(`
+      SELECT 
+        hrv_ms,
+        (
+          LEAST(40, (SUM(sleep_duration_seconds + sleep_rem_seconds + sleep_deep_seconds + sleep_light_seconds) / 25200.0) * 40) +
+          LEAST(25, (SUM(sleep_deep_seconds)::FLOAT / NULLIF(SUM(sleep_duration_seconds + sleep_rem_seconds + sleep_deep_seconds + sleep_light_seconds), 0) / 0.20) * 25) +
+          LEAST(25, (SUM(sleep_rem_seconds)::FLOAT / NULLIF(SUM(sleep_duration_seconds + sleep_rem_seconds + sleep_deep_seconds + sleep_light_seconds), 0) / 0.20) * 25) +
+          GREATEST(0, 10 - (SUM(sleep_awake_seconds)::FLOAT / NULLIF(SUM(sleep_duration_seconds + sleep_rem_seconds + sleep_deep_seconds + sleep_light_seconds + sleep_awake_seconds), 0) * 100))
+        )::INTEGER as sleep_score
+      FROM metrics_biometric
+      WHERE timestamp > NOW() - INTERVAL '24 hours'
+      GROUP BY hrv_ms
+      ORDER BY hrv_ms DESC LIMIT 1
+    `);
+
+    const hrvBaselineRes = await pool.query('SELECT AVG(hrv_ms) as baseline FROM metrics_biometric WHERE timestamp > NOW() - INTERVAL '7 days'');
+    
+    const readiness = latestInference.rows[0]?.readiness_score || 0.5;
+    const sleep = latestMetrics.rows[0]?.sleep_score || 70;
+    const hrv = latestMetrics.rows[0]?.hrv_ms || 50;
+    const baseline = hrvBaselineRes.rows[0]?.baseline || 50;
+
+    // Algoritmo de Batería Aegis:
+    // 40% Readiness + 30% Calidad Sueño + 30% HRV vs Baseline
+    const hrvFactor = Math.min(1.2, hrv / baseline);
+    const batteryLevel = Math.round(
+      (readiness * 40) + 
+      (sleep * 0.3) + 
+      (Math.min(100, (hrvFactor * 100) * 0.3))
+    );
+
+    res.json({
+      level: Math.min(100, Math.max(0, batteryLevel)),
+      factors: {
+        readiness: Math.round(readiness * 100),
+        sleep_score: sleep,
+        hrv_status: hrvFactor > 1.1 ? 'optimal' : hrvFactor > 0.9 ? 'stable' : 'low'
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Endpoint: Latest Inference
 app.get('/api/inference/latest', async (req, res) => {
   try {
@@ -382,6 +430,19 @@ app.patch('/api/plan/tasks/:id/complete', async (req, res) => {
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
     res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint: Update Task RPE Score
+app.patch('/api/plan/tasks/:id/rpe', async (req, res) => {
+  const { id } = req.params;
+  const { rpe_score } = req.body;
+  try {
+    await pool.query('UPDATE plan_tasks SET rpe_score = $1 WHERE id = $2', [rpe_score, id]);
+    res.json({ success: true, message: 'RPE registrado correctamente.' });
+    triggerInference();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

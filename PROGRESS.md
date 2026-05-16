@@ -42,7 +42,8 @@ Motor de Inferencia para la Optimización del Rendimiento (Quantified Self AI). 
 ### Phase 4: Advanced Tactical Coaching & Bio-Hacking (Active)
 - [x] **Visualización Predictiva**: Gráfica de tendencia ACWR con "Zonas de Seguridad" y "Zonas de Riesgo".
 - [x] **Sincronización Nutricional**: Extracción automática de macros (IA) y disparador táctico según carga.
-- [ ] **Indicador de Disponibilidad**: Widget de "Batería Biométrica" (HRV + Sueño + Carga). <-- **CURRENT FOCUS**
+- [x] **Rediseño de Misión del Día**: Dashboard táctico con costes energéticos, prioridades y feedback RPE.
+- [x] **Indicador de Disponibilidad**: Widget de "Batería Biométrica" (HRV + Sueño + Carga).
 - [ ] **Estrategia Situacional**: Simulador de Oponentes (Gemini genera planes contra perfiles específicos).
 - [ ] **Micro-Misiones**: Sistema de objetivos de Randori accionables con validación post-entreno.
 - [ ] **Gamificación Técnica**: Niveles de Maestría visuales (Bronce/Plata/Oro) basados en feedback real.
@@ -66,6 +67,14 @@ Motor de Inferencia para la Optimización del Rendimiento (Quantified Self AI). 
     - [ ] Centro de control de datos brutos (Edición/Borrado de logs de comida, sueño, etc.).
     - [ ] Auditoría de sincronización de fuentes (Apple, Huawei, Manual).
     - [ ] Configuración avanzada del Perfil Biométrico y objetivos dinámicos.
+
+### Phase 6: RAG & Semantic Memory (Active in RAG_implementation branch)
+- [x] **Infrastructure**: Enabled `pgvector` in Docker & Schema.
+- [x] **Architecture**: Documented `AI_RAG_ARCHITECTURE.md`.
+- [x] **Narrative Synthesis**: Implemented logic to convert JSON logs to natural language.
+- [x] **Embedding Worker**: Implementing background sync for semantic memory.
+- [x] **Knowledge Ingestion**: Populating vector store with expert Judo/Nutrition content.
+- [x] **Semantic Retrieval**: Integrating vector search into the inference engine prompts.
 
 ## 4. Completed Tasks
 - [x] Build and verify Docker environment.

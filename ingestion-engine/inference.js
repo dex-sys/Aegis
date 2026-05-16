@@ -6,6 +6,7 @@
 const { Client } = require('pg');
 const { execSync } = require('child_process');
 const fs = require('fs');
+const { retrieveContext, formatContextForPrompt } = require('./lib/retriever');
 
 const dbClient = new Client({
   connectionString: process.env.DATABASE_URL,
@@ -13,7 +14,7 @@ const dbClient = new Client({
 
 async function runInference() {
   await dbClient.connect();
-  console.log('--- Aegis Inference Job Started ---');
+  console.log('--- Aegis Inference Job Started (RAG-Enhanced) ---');
 
   const promptFile = `current_prompt_${Date.now()}.txt`;
 
@@ -23,6 +24,8 @@ async function runInference() {
 
     // 1. Obtener contexto: Últimas actividades, biometría y SALUD MENTAL
     const activityResult = await dbClient.query('SELECT * FROM activity_logs ORDER BY start_time DESC LIMIT 50');
+
+    // ... (rest of the metric collection logic remains the same)
 
     // Agregamos métricas agregadas de los últimos 28 días para el Fatigue Engine (ACWR)
     const trendResult = await dbClient.query(`
@@ -134,11 +137,16 @@ async function runInference() {
     // Calcular densidad de datos de actividad
     const activityDays = new Set(activityResult.rows.map(a => new Date(a.start_time).toISOString().split('T')[0])).size;
 
+    // 2. RECUPERACIÓN RAG: Memoria semántica de largo plazo
+    const searchQuery = `fatiga sobreentrenamiento hrv sueño lesiones recuperación judo`;
+    const ragContext = await retrieveContext(searchQuery, 3);
+    const formattedRAG = formatContextForPrompt(ragContext);
+
     const context = {
       fatigue_engine: {
         acute_workload_7d: Math.round(acuteWorkload),
         chronic_workload_28d: Math.round(chronicWorkload),
-        acwr_ratio: acwr, // 0.8-1.3 is the "sweet spot", >1.5 is danger
+        acwr_ratio: acwr,
         description: "Relación entre carga aguda y crónica ponderada por calidad de sueño y estrés mental (ACWR Holístico)."
       },
       recent_activities: activityResult.rows.slice(0, 5),
@@ -153,7 +161,7 @@ async function runInference() {
       target_date: new Date().toISOString().split('T')[0]
     };
 
-    // 2. Preparar el Prompt
+    // 3. Preparar el Prompt
     const prompt = `
 Actúa como un Científico de Datos de Alto Rendimiento Deportivo (Sports Scientist) y experto en Quantitative Self.
 Tu objetivo es analizar telemetría multimodal para generar el reporte "Estado de Combate", evaluando la homeostasis sistémica del usuario.
@@ -161,19 +169,21 @@ Tu objetivo es analizar telemetría multimodal para generar el reporte "Estado d
 DATOS DE CONTEXTO (Fatigue Engine + Raw Data):
 ${JSON.stringify(context, null, 2)}
 
+${formattedRAG}
+
 REGLAS DE INFERENCIA Y SEGURIDAD:
-- "is_cold_start" = true significa que el ACWR puede mostrar picos matemáticos irreales (ej. >3.0) por falta de histórico. En este caso, prioriza la tendencia de HRV y Sueño sobre el ACWR bruto.
-- Correlaciona métricas: Si la carga (ACWR) es alta, verifica si el déficit calórico o la calidad de sueño están agravando la fatiga.
-- Si el nivel de estrés mental es alto (>7), asume un coste alostático mayor en el SNC (Sistema Nervioso Central) y penaliza el Readiness Score.
+1. "is_cold_start" = true significa que el ACWR puede mostrar picos matemáticos irreales. Prioriza HRV y Sueño.
+2. Correlaciona métricas: Si la carga (ACWR) es alta, verifica déficit calórico o mala calidad de sueño.
+3. Memoria Histórica: Utiliza el CONTEXTO SEMÁNTICO RECUPERADO (RAG) para detectar patrones cíclicos de fatiga o lesiones recurrentes mencionadas en el pasado.
 
 TAREAS:
-1. Evalúa el Readiness Score (0.00 a 1.00) integrando recuperación física (HRV/Sueño), nutrición (déficit/surplus) y carga mental.
-2. Determina el Nivel de Fatiga estandarizado: "Low", "Moderate", "High", o "Critical".
-3. Identifica una ventana temporal ("Peak Window") para el trabajo de mayor demanda cognitiva o física hoy, basada en sus ritmos circadianos (asumiendo cronotipo matutino/intermedio por defecto si no hay datos).
-4. Redacta un resumen ejecutivo de recomendaciones (máximo 3 frases) directo y accionable.
-5. Define el "Protocolo Aplicado" (ej. "Protocolo de Descanso Activo", "Protocolo de Sobrecarga", "Protocolo de Recuperación del SNC").
+1. Evalúa el Readiness Score (0.00 a 1.00).
+2. Determina el Nivel de Fatiga estandarizado.
+3. Identifica una ventana temporal ("Peak Window").
+4. Redacta un resumen ejecutivo (máx 3 frases).
+5. Justifica citando patrones históricos si el RAG los identifica.
 
-CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Markdown (\`\`\`json).
+IMPORTANTE: Responde ÚNICAMENTE en JSON:
 {
   "readiness_score": float,
   "fatigue_level": "string",
@@ -181,7 +191,7 @@ CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Ma
   "peak_window_end": "HH:MM",
   "recommendation_summary": "string",
   "protocol_applied": "string",
-  "rationale": "Justificación fisiológica de 1 frase"
+  "rationale": "Justificación fisiológica vinculada a biometría y RAG"
 }
 `;
 
@@ -192,7 +202,7 @@ CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Ma
     const GEMINI_CMD = '/usr/local/bin/gemini';
     let geminiOutput;
     try {
-      geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --prompt ""`).toString();
+      geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --skip-trust --prompt ""`).toString();
     } catch (execErr) {
       console.error('Error executing Gemini CLI:', execErr.stderr?.toString() || execErr.message);
       throw execErr;
@@ -209,6 +219,9 @@ CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Ma
     const inference = JSON.parse(jsonMatch[0]);
     console.log('AI Inference Received:', inference.recommendation_summary);
 
+    // Truncate fatigue_level to 20 chars for DB safety
+    const fatigueLevel = (inference.fatigue_level || 'Moderate').substring(0, 20);
+
     // 4. Guardar resultados en la DB
     const insertQuery = `
       INSERT INTO inference_results 
@@ -224,7 +237,7 @@ CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Ma
     await dbClient.query(insertQuery, [
       context.target_date,
       inference.readiness_score,
-      inference.fatigue_level,
+      fatigueLevel,
       inference.peak_window_start,
       inference.peak_window_end,
       inference.recommendation_summary,

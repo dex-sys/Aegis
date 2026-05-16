@@ -6,6 +6,7 @@
 const { Client } = require('pg');
 const { execSync } = require('child_process');
 const fs = require('fs');
+const { retrieveContext, formatContextForPrompt } = require('./lib/retriever');
 
 const dbClient = new Client({
   connectionString: process.env.DATABASE_URL,
@@ -14,7 +15,7 @@ const dbClient = new Client({
 async function generatePlan() {
   await dbClient.connect();
   const targetDate = new Date().toISOString().split('T')[0];
-  console.log(`--- Aegis Day Plan Generation Started for ${targetDate} ---`);
+  console.log(`--- Aegis Day Plan Generation Started (RAG-Enhanced) for ${targetDate} ---`);
 
   const promptFile = `plan_prompt_${Date.now()}.txt`;
 
@@ -25,7 +26,7 @@ async function generatePlan() {
     
     const { id: planId, raw_briefing } = planResult.rows[0];
 
-    // 2. Obtener Contexto Fisiológico Profundo (Consultas secuenciales para evitar advertencias de pg)
+    // 2. Obtener Contexto Fisiológico Profundo
     const inferenceRes = await dbClient.query('SELECT readiness_score, fatigue_level, recommendation_summary, inference_metadata FROM inference_results ORDER BY target_date DESC LIMIT 1');
     const sleepRes = await dbClient.query("SELECT sleep_duration_seconds, sleep_score FROM metrics_biometric WHERE sleep_duration_seconds IS NOT NULL ORDER BY timestamp DESC LIMIT 1");
     const nutritionRes = await dbClient.query("SELECT SUM(kcal) as kcal, SUM(protein_g) as protein FROM nutrition_logs WHERE timestamp > NOW() - INTERVAL '24 hours'");
@@ -36,7 +37,12 @@ async function generatePlan() {
     const nutrition = nutritionRes.rows[0] || {};
     const mental = mentalRes.rows[0] || {};
 
-    // 3. Obtener Tareas Pendientes (Últimos 3 días)
+    // 3. RECUPERACIÓN RAG: Patrones de productividad y fatiga histórica
+    const searchQuery = `productividad fatiga energía tareas estudio entrenamiento estrés`;
+    const ragContext = await retrieveContext(searchQuery, 3);
+    const formattedRAG = formatContextForPrompt(ragContext);
+
+    // 4. Obtener Tareas Pendientes (Últimos 3 días)
     const pendingTasksResult = await dbClient.query(`
       SELECT t.title, t.type, d.target_date
       FROM plan_tasks t
@@ -62,6 +68,8 @@ ESTADO DEL SISTEMA:
 - Estado Mental: Estrés ${mental.stress_level || 'N/A'}/10, Ánimo ${mental.mood_score || 'N/A'}/10
 - Restricciones Nutricionales: ${nutrition.kcal || 0} kcal, ${nutrition.protein || 0}g proteína ingresadas en 24h.
 
+${formattedRAG}
+
 INPUTS DE PLANIFICACIÓN:
 - Briefing Crudo: "${raw_briefing}"
 - Tareas Pendientes (Backlog): ${pendingTasks.length > 0 ? pendingTasks.map(t => `- [${t.type}] ${t.title}`).join('\n') : 'Ninguna'}
@@ -70,7 +78,8 @@ REGLAS DE ORQUESTACIÓN:
 1. Pacing Basado en Datos: Si el estrés mental es >7 o el sueño fue pobre (<6h), fragmenta las tareas cognitivas (Deep Work) e introduce bloques de recuperación activa (leisure/admin).
 2. Triage: Filtra y prioriza. No todas las tareas pendientes deben hacerse hoy si el Readiness es bajo (<0.5).
 3. Cronobiología: Asigna el trabajo más duro ("eat the frog") a las ventanas donde se espera el pico de energía (Peak Window), y tareas mecánicas ('admin') a las ventanas de bajón.
-4. Sentido Común: Si son las 22:00, el plan debe enfocarse en "Wind down" o preparativos para mañana, no en iniciar trabajo profundo.
+4. Ajuste Histórico: Utiliza el CONTEXTO SEMÁNTICO RECUPERADO (RAG) para detectar si el usuario suele fallar en ciertos tipos de tareas en días similares y ajusta el plan.
+5. Sentido Común: Si son las 22:00, el plan debe enfocarse en "Wind down" o preparativos para mañana, no en iniciar trabajo profundo.
 
 CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Markdown (\`\`\`json).
 {
@@ -92,7 +101,7 @@ CRÍTICO: Devuelve ÚNICAMENTE un objeto JSON válido, sin bloques de código Ma
     const GEMINI_CMD = '/usr/local/bin/gemini';
     let geminiOutput;
     try {
-      geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --prompt ""`).toString();
+      geminiOutput = execSync(`cat ${promptFile} | ${GEMINI_CMD} --skip-trust --prompt ""`).toString();
     } catch (execErr) {
       console.error('Error executing Gemini CLI:', execErr.stderr?.toString() || execErr.message);
       throw execErr;

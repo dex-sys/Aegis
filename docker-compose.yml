@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: aegis-db
     restart: always
     environment:
@@ -24,9 +24,10 @@ services:
       DROPZONE_PATH: /app/dropzone
     volumes:
       - ./data/dropzone:/app/dropzone
+      - ./data/knowledge:/app/data/knowledge
       - ./ingestion-engine:/app
       - /app/node_modules
-      - gemini_state:/root/.gemini # Carpeta persistente para la sesión
+      - /home/azazxl/.gemini:/root/.gemini # Compartir sesión del host
     depends_on:
       - db
 
@@ -41,8 +42,9 @@ services:
       DATABASE_URL: postgresql://aegis_admin:aegis_vault_password@db:5432/aegis_db
     volumes:
       - ./ingestion-engine:/app
+      - ./data/knowledge:/app/data/knowledge
       - /app/node_modules
-      - gemini_state:/root/.gemini # Comparten la misma sesión de login
+      - /home/azazxl/.gemini:/root/.gemini # Compartir sesión del host
     depends_on:
       - db
     command: tail -f /dev/null # Se queda encendido esperando órdenes
